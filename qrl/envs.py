@@ -50,9 +50,10 @@ def one_hot_obs(env_id: str, obs) -> np.ndarray:
     return np.asarray(obs, dtype=np.float32)
 
 
-def random_baseline(env_id: str, n_episodes: int = 100, seed: int = 0) -> float:
-    """Mean undiscounted return of a uniform-random policy (R_random in the plan)."""
-    env = make_env(env_id, seed=seed)
+def random_baseline(env_id: str, n_episodes: int = 100, seed: int = 0, **env_kwargs) -> float:
+    """Mean undiscounted return of a uniform-random policy (R_random in the plan).
+    Pass the same env_kwargs as training (e.g. FrozenLake is_slippery=False)."""
+    env = make_env(env_id, seed=seed, **env_kwargs)
     rng = np.random.default_rng(seed)
     rets = []
     for _ in range(n_episodes):

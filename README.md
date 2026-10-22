@@ -95,4 +95,4 @@ Noise strings: `none`, `shots=N`, `coherent=σ`, `depolarizing=p`, `readout=p`, 
 ## Team
 
 Group 1: Le Nguyen Bao Huy, Yang Mingchen, Poobanchuen Panjapong, Wang Jianning.
-Roles in `CONTRIBUTING.md`.
+Roles in `CONTRIBUTING.md`; per-person guides with deliverables and dates in `docs/members/`.

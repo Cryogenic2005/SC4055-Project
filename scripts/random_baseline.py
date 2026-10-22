@@ -13,7 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from qrl.config import TASKS  # noqa: E402
+from qrl.config import TASKS, default_config_for  # noqa: E402
 from qrl.envs import random_baseline  # noqa: E402
 from qrl.logging_utils import write_random_baseline  # noqa: E402
 
@@ -26,6 +26,7 @@ if __name__ == "__main__":
     a = ap.parse_args()
     tasks = list(TASKS) if a.all else [a.task]
     for t in tasks:
-        r = random_baseline(t, a.episodes)
+        # Use the same map/kwargs as the task's training config (FrozenLake: deterministic).
+        r = random_baseline(t, a.episodes, **default_config_for(t).env_kwargs)
         write_random_baseline(a.out, t, r)
         print(f"{t:16s} R_random = {r:.3f}")

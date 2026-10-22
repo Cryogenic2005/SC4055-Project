@@ -1,0 +1,26 @@
+[project]
+name = "sc4055-project"
+version = "0.1.0"
+description = "Repository for the SC4055 Quantum Computing project"
+authors = [
+    { name = "Le Nguyen Bao Huy", email = "leng0041@e.ntu.edu.sg" },
+    { name = "Yang Mingchen", email = "" },
+    { name = "Poobanchuen Panjapong", email = "" },
+    { name = "Wang Jianning", email = "" },
+]
+readme = "README.md"
+requires-python = ">=3.12, <3.13"
+# Keep in sync with requirements.txt (pinned: JAX 0.12 breaks PennyLane 0.45).
+dependencies = [
+    "pennylane==0.45.1",
+    "jax[cpu]==0.10.2",
+    "jaxlib==0.10.2",
+    "optax==0.2.8",
+    "numpy>=2.0,<3",
+    "scipy>=1.14",
+    "swig>=4.2",
+    "gymnasium[classic-control,toy-text,box2d]==1.4.0",
+    "pandas>=2.2",
+    "matplotlib>=3.9",
+    "pytest>=8",
+]
