@@ -34,6 +34,14 @@ from qrl.noise import parse_noise  # noqa: E402
 from tasks.frozenlake.agent import init_params, make_q_fn, count_params, state_to_bits  # noqa: E402
 
 
+def shape_reward(r: float, terminated: bool) -> float:
+    """Chen et al. 2020 shaping for FrozenLake: +1 goal, -0.2 hole, -0.01 per step.
+    Used only for the replay buffer; logged returns stay raw."""
+    if terminated:
+        return 1.0 if r > 0 else -0.2
+    return -0.01
+
+
 class Replay:
     def __init__(self, size: int, rng: np.random.Generator):
         self.s = np.zeros((size, 4), np.float32); self.a = np.zeros(size, np.int32)
@@ -104,7 +112,10 @@ def train(cfg: Config, quick: bool = False) -> dict:
     print(f"[{cfg.run_name}] {n_params} params, noise={spec.label}, device={'mixed' if spec.needs_mixed else 'qubit'}")
 
     for ep in range(cfg.n_episodes):
-        eps = max(cfg.epsilon_end, cfg.epsilon_start - (cfg.epsilon_start - cfg.epsilon_end) * ep / cfg.epsilon_decay_episodes)
+        if cfg.epsilon_decay_rate:
+            eps = max(cfg.epsilon_end, cfg.epsilon_start * cfg.epsilon_decay_rate ** ep)
+        else:
+            eps = max(cfg.epsilon_end, cfg.epsilon_start - (cfg.epsilon_start - cfg.epsilon_end) * ep / cfg.epsilon_decay_episodes)
         s, _ = env.reset()
         sb = state_to_bits(s)
         done, ret = False, 0.0
@@ -116,7 +127,8 @@ def train(cfg: Config, quick: bool = False) -> dict:
                 a = int(jnp.argmax(q_fn(params, sb[None], k)[0]))
             s2, r, term, trunc, _ = env.step(a)
             s2b = state_to_bits(s2)
-            buf.add(sb, a, r, s2b, float(term))
+            r_train = shape_reward(r, term) if cfg.reward_shaping else r
+            buf.add(sb, a, r_train, s2b, float(term))
             sb, ret, done, steps = s2b, ret + r, term or trunc, steps + 1
             if buf.n >= cfg.learning_starts and steps % cfg.train_every == 0:
                 key, k = jax.random.split(key)
@@ -155,7 +167,8 @@ def main(argv=None):
     ap.add_argument("--layers", type=int, default=None)
     ap.add_argument("--episodes", type=int, default=None)
     ap.add_argument("--run-dir", default="runs")
-    ap.add_argument("--eps-decay", type=int, default=None, help="epsilon decay length in episodes")
+    ap.add_argument("--eps-decay", type=int, default=None, help="linear epsilon decay length in episodes (overrides multiplicative)")
+    ap.add_argument("--no-shaping", action="store_true", help="disable Chen-style reward shaping")
     ap.add_argument("--lr", type=float, default=None, help="circuit learning rate")
     ap.add_argument("--no-reupload", action="store_true")
     ap.add_argument("--quick", action="store_true", help="stop after a few episodes (smoke test)")
@@ -165,7 +178,8 @@ def main(argv=None):
     cfg = default_config_for("FrozenLake-v1", "vqc", seed=a.seed, noise=a.noise, run_dir=a.run_dir,
                              **({"n_layers": a.layers} if a.layers else {}),
                              **({"n_episodes": a.episodes} if a.episodes else {}),
-                             **({"epsilon_decay_episodes": a.eps_decay} if a.eps_decay else {}),
+                             **({"epsilon_decay_episodes": a.eps_decay, "epsilon_decay_rate": None} if a.eps_decay else {}),
+                             **({"reward_shaping": False} if a.no_shaping else {}),
                              **({"lr_circuit": a.lr} if a.lr else {}),
                              data_reuploading=not a.no_reupload,
                              tag="det" if a.deterministic else "")

@@ -62,6 +62,9 @@ class Config:
     epsilon_start: float = 1.0
     epsilon_end: float = 0.01
     epsilon_decay_episodes: int = 300
+    epsilon_decay_rate: float | None = None   # if set: eps = max(end, start * rate**episode) (multiplicative)
+    reward_shaping: bool = False    # FrozenLake only: train on +1 goal / -0.2 hole / -0.01 step (Chen et al.);
+                                    # the LOGGED return is always the raw env return
     lr_circuit: float = 1e-3
     lr_input: float = 1e-3
     lr_output: float = 0.1
@@ -137,8 +140,10 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
     """Per-task defaults chosen so that a 1-seed run finishes in minutes.
     These are starting points for the M1 hyperparameter sweep, not final values."""
     per_task: dict[str, dict[str, Any]] = {
-        "FrozenLake-v1": dict(n_layers=3, n_episodes=1500, batch_size=16, learning_starts=100,
-                              epsilon_decay_episodes=800, lr_circuit=5e-3, lr_output=0.1),
+        # 5 layers (64 params): 3 layers did not learn in 500 episodes in our tests; 5 layers reached
+        # 100% greedy success on is_slippery=False with shaping + eps *= 0.99 per episode.
+        "FrozenLake-v1": dict(n_layers=5, n_episodes=1500, batch_size=16, learning_starts=100,
+                              epsilon_decay_rate=0.99, reward_shaping=True, lr_circuit=1e-2, lr_output=0.1),
         "CartPole-v1": dict(n_layers=5, n_episodes=1500, batch_size=16, learning_starts=1000,
                             epsilon_decay_episodes=500, target_update_every=1, lr_circuit=1e-3),
         "Acrobot-v1": dict(n_layers=3, n_episodes=600, batch_size=32, learning_starts=1000,
