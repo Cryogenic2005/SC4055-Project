@@ -75,6 +75,7 @@ class Config:
     checkpoint_every: int = 50      # episodes
     log_every: int = 10             # print to stdout
     tag: str = ""                   # optional suffix for file names
+    env_kwargs: dict = field(default_factory=dict)  # e.g. {"is_slippery": False}
 
     def __post_init__(self) -> None:
         if self.env_id not in TASKS:

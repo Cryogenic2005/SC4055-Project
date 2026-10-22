@@ -36,7 +36,7 @@ def evaluate(cfg: Config, params, conditions=NOISE_MENU, n_episodes: int = 100, 
     for cond in conditions:
         spec = parse_noise(cond)
         q_fn = make_q_fn(cfg.n_layers, spec, cfg.data_reuploading, seed=cfg.seed + 1000)
-        env = make_env(cfg.env_id, seed=cfg.seed + 1000)
+        env = make_env(cfg.env_id, seed=cfg.seed + 1000, **cfg.env_kwargs)
         key = jax.random.PRNGKey(cfg.seed + 1000)
         rets = []
         for ep in range(n_episodes):

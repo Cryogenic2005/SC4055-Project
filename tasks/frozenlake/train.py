@@ -87,7 +87,7 @@ def train(cfg: Config, quick: bool = False) -> dict:
     if not spec.shots:
         update = jax.jit(update)
 
-    env = make_env(cfg.env_id, seed=cfg.seed, max_steps=cfg.max_steps)
+    env = make_env(cfg.env_id, seed=cfg.seed, max_steps=cfg.max_steps, **cfg.env_kwargs)
     buf = Replay(cfg.buffer_size, rng)
     run_dir = Path(cfg.run_dir)
     ckpt_dir = run_dir / "checkpoints" / cfg.run_name
@@ -155,13 +155,22 @@ def main(argv=None):
     ap.add_argument("--layers", type=int, default=None)
     ap.add_argument("--episodes", type=int, default=None)
     ap.add_argument("--run-dir", default="runs")
+    ap.add_argument("--eps-decay", type=int, default=None, help="epsilon decay length in episodes")
+    ap.add_argument("--lr", type=float, default=None, help="circuit learning rate")
     ap.add_argument("--no-reupload", action="store_true")
     ap.add_argument("--quick", action="store_true", help="stop after a few episodes (smoke test)")
+    ap.add_argument("--deterministic", action="store_true",
+                    help="is_slippery=False (Chen et al. setting); default is the slippery registered env")
     a = ap.parse_args(argv)
     cfg = default_config_for("FrozenLake-v1", "vqc", seed=a.seed, noise=a.noise, run_dir=a.run_dir,
                              **({"n_layers": a.layers} if a.layers else {}),
                              **({"n_episodes": a.episodes} if a.episodes else {}),
-                             data_reuploading=not a.no_reupload)
+                             **({"epsilon_decay_episodes": a.eps_decay} if a.eps_decay else {}),
+                             **({"lr_circuit": a.lr} if a.lr else {}),
+                             data_reuploading=not a.no_reupload,
+                             tag="det" if a.deterministic else "")
+    if a.deterministic:
+        cfg.env_kwargs = {"is_slippery": False}
     return train(cfg, quick=a.quick)
 
 
