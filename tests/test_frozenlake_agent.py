@@ -38,5 +38,5 @@ def test_noisy_q_is_contracted():
     bits = jnp.asarray(state_to_bits(np.arange(16)))
     clean = make_q_fn(2, parse_noise("none"))(params, bits, jax.random.PRNGKey(0))
     noisy = make_q_fn(2, parse_noise("depolarizing=0.1"))(params, bits, jax.random.PRNGKey(0))
-    # Q = w (z+1)/2 with w=1: expvals shrink toward 0 => Q shrinks toward 0.5
-    assert float(jnp.abs(noisy - 0.5).mean()) < float(jnp.abs(clean - 0.5).mean())
+    # Q = w z with w=1: depolarizing shrinks expvals toward 0 => |Q| shrinks
+    assert float(jnp.abs(noisy).mean()) < float(jnp.abs(clean).mean())

@@ -5,7 +5,11 @@ Circuit on 4 qubits:
     L variational layers, each: RX, RY, RZ on every qubit, then a CZ ring
     (optional data re-uploading: the encoding is repeated before every layer)
     readout          <Z_i> for i in range(4)  -> one Q-value per action
-    Q_a = w_out[a] * (<Z_a> + 1) / 2            (trainable output weights, Skolik)
+    Q_a = w_out[a] * <Z_a>                      (trainable output scale)
+
+    NOTE: Skolik's Q = w (<Z>+1)/2 is non-negative at init and cannot represent the
+    negative shaped rewards (-0.2 hole, -0.01 step) without flipping the sign of w for
+    every state; with it, training stalled at 0 on the deterministic map. Q = w <Z> fixed it.
 
 Pure-functional: `init_params` builds the pytree, `make_q_fn` builds a jitted
 batched function  q(params, bits, key) -> (batch, 4).  Noise is inserted with
@@ -82,7 +86,7 @@ def make_q_fn(n_layers: int, spec: NoiseSpec, reupload: bool = True, seed: int |
             theta = theta + sigma * jax.random.normal(k1, theta.shape)
             lam = lam + sigma * jax.random.normal(k2, lam.shape) / jnp.pi  # perturb encoding angles too
         z = jnp.stack(circuit(bits, theta, lam))
-        return params["w_out"] * (z + 1.0) / 2.0
+        return params["w_out"] * z
 
     def batched(params, bits, key):
         keys = jax.random.split(key, bits.shape[0])

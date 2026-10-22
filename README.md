@@ -59,7 +59,8 @@ docs/                plan, run matrix, analysis spec, project brief
 ## Running FrozenLake (P2 reference)
 
 ```bash
-python tasks/frozenlake/train.py --seed 0                              # Experiment A
+python tasks/frozenlake/train.py --seed 0                              # Experiment A (deterministic map, ~35 s, solves by ~ep 220)
+python tasks/frozenlake/train.py --seed 0 --slippery                   # stochastic map (registered threshold 0.70)
 python tasks/frozenlake/train.py --seed 0 --noise depolarizing=0.01    # Experiment C
 python tasks/frozenlake/train.py --seed 0 --noise shots=100            # parameter-shift
 python tasks/frozenlake/evaluate.py --checkpoint runs/checkpoints/FrozenLake-v1_vqc_0/final.pkl   # Experiment B, 17 conditions
@@ -88,6 +89,8 @@ Noise strings: `none`, `shots=N`, `coherent=σ`, `depolarizing=p`, `readout=p`, 
 | `default.mixed(readout_prob=p)` → `TypeError: 'float' object is not iterable` | explicit `BitFlip` before measurement |
 | Shots device inside `jax.vmap`/`jit` → `ConcretizationTypeError` | shots path loops in Python, no jit |
 | FrozenLake MLP baseline sees the state index | MLPs get a 16-way one-hot (`envs.one_hot_obs`) |
+| Q = w(⟨Z⟩+1)/2 (Skolik) cannot represent negative shaped rewards; training stalled at 0 | FrozenLake uses Q = w⟨Z⟩ |
+| Late training collapse (train mean 1.0, greedy 0.0 at the end) | greedy eval every 25 episodes, `best.pkl` kept next to `final.pkl` |
 
 ## Team
 

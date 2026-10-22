@@ -16,7 +16,8 @@ from qrl.config import TASKS
 
 def make_env(env_id: str, seed: int | None = None, max_steps: int | None = None, **kw) -> gym.Env:
     if env_id == "FrozenLake-v1":
-        # Slippery is the registered default; keep it so the 0.70 threshold means something.
+        # Registered default is slippery (threshold 0.70). The FrozenLake config passes
+        # is_slippery=False (Chen et al.); pass --slippery to train.py for the stochastic map.
         kw.setdefault("is_slippery", True)
     env = gym.make(env_id, max_episode_steps=max_steps, **kw)
     if seed is not None:

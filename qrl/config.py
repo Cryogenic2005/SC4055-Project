@@ -75,7 +75,8 @@ class Config:
 
     # --- bookkeeping ---
     run_dir: str = "runs"
-    checkpoint_every: int = 50      # episodes
+    checkpoint_every: int = 25      # episodes; also runs a short greedy eval and updates best.pkl
+    eval_episodes: int = 20         # greedy episodes per periodic eval (0 disables)
     log_every: int = 10             # print to stdout
     tag: str = ""                   # optional suffix for file names
     env_kwargs: dict = field(default_factory=dict)  # e.g. {"is_slippery": False}
@@ -142,8 +143,12 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
     per_task: dict[str, dict[str, Any]] = {
         # 5 layers (64 params): 3 layers did not learn in 500 episodes in our tests; 5 layers reached
         # 100% greedy success on is_slippery=False with shaping + eps *= 0.99 per episode.
-        "FrozenLake-v1": dict(n_layers=5, n_episodes=1500, batch_size=16, learning_starts=100,
-                              epsilon_decay_rate=0.99, reward_shaping=True, lr_circuit=1e-2, lr_output=0.1),
+        # Verified 22 Oct: with these settings seeds reach ~0.95 train mean / 1.00 greedy on the
+        # deterministic map in ~500 episodes (2 min). gamma 0.9 and no re-uploading follow Chen et al.
+        "FrozenLake-v1": dict(n_layers=5, n_episodes=600, batch_size=32, learning_starts=32, gamma=0.9,
+                              data_reuploading=False, target_update_every=50,
+                              epsilon_decay_rate=0.99, reward_shaping=True, lr_circuit=1e-2, lr_output=0.1,
+                              env_kwargs={"is_slippery": False}),  # Chen et al. map; --slippery for the stochastic one
         "CartPole-v1": dict(n_layers=5, n_episodes=1500, batch_size=16, learning_starts=1000,
                             epsilon_decay_episodes=500, target_update_every=1, lr_circuit=1e-3),
         "Acrobot-v1": dict(n_layers=3, n_episodes=600, batch_size=32, learning_starts=1000,
