@@ -218,3 +218,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- SC4055 project-specific ---
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+runs/checkpoints/
+runs/train/*.csv
+runs/eval/*.csv
+results/
+*.egg-info/
+.ipynb_checkpoints/
+.DS_Store
