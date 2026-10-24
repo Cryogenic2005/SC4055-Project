@@ -19,10 +19,10 @@ sit on one plot and support one argument instead of being four separate demos.
 
 | | Member | Task | Shared component | Report / video | Guide | Status |
 |---|---|---|---|---|---|---|
-| **P1** | _name_ | CartPole | `qrl/agent.py`, `qrl/dqn.py` (QAgent + DQN loop) | Method section, video intro | [docs/members/P1.md](docs/members/P1.md) | Not started |
+| **P1** | Le Nguyen Bao Huy | CartPole | `qrl/agent.py`, `qrl/dqn.py` (QAgent + DQN loop) | Method section, video intro | [docs/members/P1.md](docs/members/P1.md) | Not started |
 | **P2** | Poobanchuen Panjapong | FrozenLake | `qrl/noise.py`, presets, tests | Noise-model section, **report editor** | [docs/members/P2.md](docs/members/P2.md) | Exp A done (5/5 seeds) |
-| **P3** | _name_ | Acrobot | `qrl/evaluate.py`, `analysis/` | Results figures, **video editor** | [docs/members/P3.md](docs/members/P3.md) | Not started |
-| **P4** | _name_ | LunarLander hybrid | MLP baselines, `qrl/envs.py` | Related work, limitations, conclusion | [docs/members/P4.md](docs/members/P4.md) | Not started |
+| **P3** | Wang Jianning | Acrobot | `qrl/evaluate.py`, `analysis/` | Results figures, **video editor** | [docs/members/P3.md](docs/members/P3.md) | Not started |
+| **P4** | Yang Mingchen | LunarLander hybrid | MLP baselines, `qrl/envs.py` | Related work, limitations, conclusion | [docs/members/P4.md](docs/members/P4.md) | Not started |
 
 Group 1 members: Le Nguyen Bao Huy, Yang Mingchen, Poobanchuen Panjapong, Wang Jianning.
 **Put your name in the table above and update your Status cell in your PRs.**
@@ -88,69 +88,79 @@ Noise strings (used on every command line and in every CSV): `none`, `shots=N`, 
 | **Sun 8 Nov** | **M4:** report draft, slides, recorded 15-min video |
 | **Fri 13 Nov** | Submit the PDF report plus video and code links by email (see the brief in `docs/`) |
 
-## Setup (every laptop + Colab, day 1)
+## Setup
 
+First run the following commands to clone the repo and update pip.
 ```bash
 git clone https://github.com/Cryogenic2005/SC4055-Project.git
 cd SC4055-Project
-bash setup.sh            # creates .venv, installs pinned deps, runs the smoke test
+pip install --upgrade pip
 ```
 
-With uv (Python 3.12; the repo has `pyproject.toml` / `uv.lock`):
-
+Package installation (for development):
 ```bash
-uv lock && uv sync
-uv run python scripts/smoke_test.py
+pip install -e . --group dev # Install with development dependencies (pytest, black, mypy, etc.)
+```bash
+pip install -e .[qiskit]  # Install with Qiskit
+```
+```bash
+pip install -e .[jupyter]  # Install with Jupyter
 ```
 
-Colab:
-
-```python
-!git clone https://github.com/Cryogenic2005/SC4055-Project.git
-%cd SC4055-Project
-!bash setup.sh --no-venv
+Otherwise, install the minimal dependencies for running the tasks:
+```bash
+pip install .
 ```
 
-Windows: use WSL or Colab, because Box2D does not build natively.
 
-The smoke test must print `ALL OK`. It checks the pinned versions, the jitted 4-qubit QNode
-(well under 1 ms per batch; if not, you are on the slow path), the density-matrix device, all
-four environments, and a short training run that writes a CSV with the agreed columns.
-
-**Do not** run `pip install pennylane jax` without pins: JAX 0.12 breaks PennyLane 0.45.
 
 ## Repository layout
 
 ```
-qrl/                 shared package
-  config.py          Config dataclass (env, model, circuit, noise, DQN hyperparameters)
-  envs.py            make_env, per-task encoders, random baseline            (P4)
-  noise.py           NoiseSpec, parse_noise, NOISE_MENU, presets, make_device, apply_noise  (P2)
-  logging_utils.py   TrainLogger / EvalLogger with the analysis-spec columns
-  agent.py           shared QAgent interface                                 (P1, stub)
-  dqn.py             shared DQN loop                                         (P1, stub)
-  evaluate.py        shared evaluation harness                               (P3, stub)
-tasks/
-  frozenlake/        P2: agent.py, train.py, evaluate.py (complete reference implementation)
-  cartpole/          P1
-  acrobot/           P3
-  lunarlander/       P4
-scripts/             smoke_test.py, random_baseline.py
+src/sc4055_project/  Project source code
+  qrl/                 shared package
+    config.py          Config dataclass (env, model, circuit, noise, DQN hyperparameters)
+    envs.py            make_env, per-task encoders, random baseline            (P4)
+    noise.py           NoiseSpec, parse_noise, NOISE_MENU, presets, make_device, apply_noise  (P2)
+    logging_utils.py   TrainLogger / EvalLogger with the analysis-spec columns
+    agent.py           shared QAgent interface                                 (P1, stub)
+    dqn.py             shared DQN loop                                         (P1, stub)
+    evaluate.py        shared evaluation harness                               (P3, stub)
+  tasks/
+    frozenlake/        P2: agent.py, train.py, evaluate.py (complete reference implementation)
+    cartpole/          P1
+    acrobot/           P3
+    lunarlander/       P4
+  frozenlake.py        Entry point for the frozenlake task
+  baseline.py
 tests/               pytest: noise contractions, agent shapes/jit/gradients, logger columns
 analysis/            P3: analyze.py and figures
 runs/                train/*.csv, eval/*.csv, random.csv, checkpoints/ (git-ignored)
 docs/                team plan, run matrix, analysis spec, project brief, members/ guides
 ```
 
-## Quick start: FrozenLake (P2, the working reference)
+## Quick start
 
+As of now, the following commands are available:
 ```bash
-python tasks/frozenlake/train.py --seed 0                              # Experiment A (~30 s, solves by ~ep 220)
-python tasks/frozenlake/train.py --seed 0 --noise depolarizing=0.01    # Experiment C
-python tasks/frozenlake/train.py --seed 0 --noise shots=100            # shot noise, parameter-shift
-python tasks/frozenlake/evaluate.py --checkpoint runs/checkpoints/FrozenLake-v1_vqc_0/best.pkl   # Experiment B, 17 conditions
-python scripts/random_baseline.py FrozenLake-v1
+baseline [task]       # Run baseline on the specified task (or all of them)
+# Equivalent to `python src/sc4055_project/frozenlake.py (...)`
+frozenlake train      # Train the model on FrozenLake-v1 task
+frozenlake evaluate   # Evaluate the model on FrozenLake-v1 task
+``` 
+
+### For developers
+
+`[project.scripts]` in `pyproject.toml` helps define task entry points for convenient execution.
+
+To add your own tasks, modify `[project.scripts]` in `pyproject.toml` and add the your entry point `main` function (or equivalent). Example, adding:
+```toml
+# in [project.scripts]
+mytask = "sc4055_project.myfilename:function"
 ```
+will allow you to run `mytask` from the command line, which will call `function` in `myfilename.py` in the `sc4055_project` package, instead of having to run `python -m src/sc4055_project/myfilename`.
+
+**NOTE**: To update this change, you will need to reinstall the package with `pip install -e .`, or whatever you used to install this package.
 
 ## How we work
 
