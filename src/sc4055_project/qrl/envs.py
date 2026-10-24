@@ -8,13 +8,15 @@ The encoder maps a raw observation to the vector the model sees:
 
 from __future__ import annotations
 
-import numpy as np
 import gymnasium as gym
+import numpy as np
 
-from qrl.config import TASKS
+from .config import TASKS
 
 
-def make_env(env_id: str, seed: int | None = None, max_steps: int | None = None, **kw) -> gym.Env:
+def make_env(
+    env_id: str, seed: int | None = None, max_steps: int | None = None, **kw
+) -> gym.Env:
     if env_id == "FrozenLake-v1":
         # Registered default is slippery (threshold 0.70). The FrozenLake config passes
         # is_slippery=False (Chen et al.); pass --slippery to train.py for the stochastic map.
@@ -50,7 +52,9 @@ def one_hot_obs(env_id: str, obs) -> np.ndarray:
     return np.asarray(obs, dtype=np.float32)
 
 
-def random_baseline(env_id: str, n_episodes: int = 100, seed: int = 0, **env_kwargs) -> float:
+def random_baseline(
+    env_id: str, n_episodes: int = 100, seed: int = 0, **env_kwargs
+) -> float:
     """Mean undiscounted return of a uniform-random policy (R_random in the plan).
     Pass the same env_kwargs as training (e.g. FrozenLake is_slippery=False)."""
     env = make_env(env_id, seed=seed, **env_kwargs)
@@ -61,7 +65,7 @@ def random_baseline(env_id: str, n_episodes: int = 100, seed: int = 0, **env_kwa
         done, total = False, 0.0
         while not done:
             obs, r, term, trunc, _ = env.step(int(rng.integers(env.action_space.n)))
-            total += r
+            total += r  # pyright: ignore[reportOperatorIssue]
             done = term or trunc
         rets.append(total)
     env.close()

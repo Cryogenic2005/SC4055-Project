@@ -19,8 +19,10 @@ The FrozenLake-only loop in tasks/frozenlake/train.py is the reference to genera
 
 from __future__ import annotations
 
-from qrl.config import Config
+from .config import Config
 
 
 def train(cfg: Config) -> dict:
-    raise NotImplementedError("P1: shared DQN loop not implemented yet; see tasks/frozenlake/train.py")
+    raise NotImplementedError(
+        "P1: shared DQN loop not implemented yet; see tasks/frozenlake/train.py"
+    )

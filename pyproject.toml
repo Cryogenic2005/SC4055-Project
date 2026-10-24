@@ -1,26 +1,84 @@
 [project]
 name = "sc4055-project"
 version = "0.1.0"
-description = "Repository for the SC4055 Quantum Computing project"
+description = "Group 1's Repository for the SC4055 Quantum Computing project"
 authors = [
     { name = "Le Nguyen Bao Huy", email = "leng0041@e.ntu.edu.sg" },
-    { name = "Yang Mingchen", email = "" },
-    { name = "Poobanchuen Panjapong", email = "" },
-    { name = "Wang Jianning", email = "" },
+    { name = "Yang Mingchen" },
+    { name = "Poobanchuen Panjapong" },
+    { name = "Wang Jianning" },
 ]
 readme = "README.md"
 requires-python = ">=3.12, <3.13"
-# Keep in sync with requirements.txt (pinned: JAX 0.12 breaks PennyLane 0.45).
 dependencies = [
-    "pennylane==0.45.1",
+    # Qiskit optional dependency requires this. Otherwise pip uses version 3.0.0
+    #   Avoids later conflicts when developing with Qiskit extras
+    "python-dateutil<3",
+
+    # PennyLane (latest) crashes due to JAX deprecating `jax.core.is_concrete`
+    #   so we pin JAX to 0.10.2
     "jax[cpu]==0.10.2",
     "jaxlib==0.10.2",
-    "optax==0.2.8",
+    "pennylane==0.45.1",
+
+    "gymnasium[classic-control,toy-text,box2d]==1.4.0",
+    "matplotlib>=3.9",
     "numpy>=2.0,<3",
+    "optax==0.2.8",
+    "pandas>=2.2",
     "scipy>=1.14",
     "swig>=4.2",
-    "gymnasium[classic-control,toy-text,box2d]==1.4.0",
-    "pandas>=2.2",
-    "matplotlib>=3.9",
-    "pytest>=8",
 ]
+
+[dependency-groups]
+typing = ["pyright>=1.1.414"]
+lint = ["ruff>=0.0.241"]
+test = ["pytest>=8"]
+dev = [
+    { include-group = "lint" },
+    { include-group = "test" },
+    { include-group = "typing" },
+]
+
+[project.optional-dependencies]
+qiskit = ["qiskit>=1.3", "qiskit-aer>=0.15", "pennylane-qiskit>=0.45"]
+
+[project.scripts]
+baseline = "sc4055_project.baseline:main"
+frozenlake = "sc4055_project.frozenlake:main"
+
+[build-system]
+requires = ["setuptools>=74,<82"]
+build-backend = "setuptools.build_meta"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+include = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = ["E501", "E741", "UP032", "UP037", "B905", "SIM102", "RUF059"]
+
+[tool.pytest.ini_options]
+addopts = ["--import-mode=importlib"]
+testpaths = ["tests"]
+pythonpath = ["src"]
+filterwarnings = [
+    # Swig: Safe to ignore since we already pinned Swig versions
+    "ignore:builtin type \\w+ has no __module__ attribute:DeprecationWarning",
+    # JAX: Safe to ignore since we already pinned JAX versions
+    "ignore:jax.core.\\w+ is deprecated:DeprecationWarning",
+    # "ignore:Explicitly requested dtype complex128 requested in astype is not available, and will be truncated to dtype complex64:UserWarning",
+    # PennyLane: Safe to ignore since we already pinned PennyLane versions
+    "ignore:Setting shots on device is deprecated. Please use the `set_shots` transform on the respective QNode instead.:UserWarning",
+]
+
+[tool.pyright]
+pythonVersion = "3.12"
+typeCheckingMode = "basic"
+
+[tool.uv.extra-build-dependencies]
+# uv sync doesn't work without this. Luckily it's uv-specific
+ibm-platform-services = ["setuptools<82"]
+ibm-cloud-sdk-core = ["setuptools<82"]

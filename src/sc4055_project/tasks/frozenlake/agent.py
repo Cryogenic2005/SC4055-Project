@@ -23,7 +23,12 @@ import jax.numpy as jnp
 import numpy as np
 import pennylane as qml
 
-from qrl.noise import NoiseSpec, make_device, apply_noise, apply_readout_noise
+from sc4055_project.qrl.noise import (
+    NoiseSpec,
+    apply_noise,
+    apply_readout_noise,
+    make_device,
+)
 
 N_QUBITS = 4
 N_ACTIONS = 4
@@ -32,7 +37,9 @@ N_ACTIONS = 4
 def init_params(n_layers: int, key, reupload: bool = True) -> dict:
     k1, k2 = jax.random.split(key)
     return {
-        "theta": jax.random.uniform(k1, (n_layers, N_QUBITS, 3), minval=0.0, maxval=2 * jnp.pi),
+        "theta": jax.random.uniform(
+            k1, (n_layers, N_QUBITS, 3), minval=0.0, maxval=2 * jnp.pi
+        ),
         "lam": jnp.ones((n_layers if reupload else 1, N_QUBITS)),  # input scaling
         "w_out": jnp.ones((N_ACTIONS,)),
     }
@@ -42,8 +49,13 @@ def count_params(params) -> int:
     return int(sum(p.size for p in jax.tree_util.tree_leaves(params)))
 
 
-def build_circuit(n_layers: int, spec: NoiseSpec, reupload: bool = True, seed: int | None = None,
-                  diff_method: str | None = None):
+def build_circuit(
+    n_layers: int,
+    spec: NoiseSpec,
+    reupload: bool = True,
+    seed: int | None = None,
+    diff_method: str | None = None,
+):
     """Return a QNode f(bits, theta, lam) -> list of 4 expvals."""
     dev = make_device(N_QUBITS, spec, seed=seed)
     if diff_method is None:
@@ -62,18 +74,28 @@ def build_circuit(n_layers: int, spec: NoiseSpec, reupload: bool = True, seed: i
             if reupload and l > 0:
                 encode(bits, lam[l])
             for i in range(N_QUBITS):
-                qml.RX(theta[l, i, 0], wires=i); apply_noise(spec, [i])
-                qml.RY(theta[l, i, 1], wires=i); apply_noise(spec, [i])
-                qml.RZ(theta[l, i, 2], wires=i); apply_noise(spec, [i])
+                qml.RX(theta[l, i, 0], wires=i)
+                apply_noise(spec, [i])
+                qml.RY(theta[l, i, 1], wires=i)
+                apply_noise(spec, [i])
+                qml.RZ(theta[l, i, 2], wires=i)
+                apply_noise(spec, [i])
             for i in range(N_QUBITS):
-                qml.CZ(wires=[i, (i + 1) % N_QUBITS]); apply_noise(spec, [i, (i + 1) % N_QUBITS])
+                qml.CZ(wires=[i, (i + 1) % N_QUBITS])
+                apply_noise(spec, [i, (i + 1) % N_QUBITS])
         apply_readout_noise(spec, range(N_ACTIONS))
         return [qml.expval(qml.PauliZ(i)) for i in range(N_ACTIONS)]
 
     return circuit
 
 
-def make_q_fn(n_layers: int, spec: NoiseSpec, reupload: bool = True, seed: int | None = None, jit: bool = True):
+def make_q_fn(
+    n_layers: int,
+    spec: NoiseSpec,
+    reupload: bool = True,
+    seed: int | None = None,
+    jit: bool = True,
+):
     """Batched Q-function. Coherent over-rotation is drawn per call from `key`.
     With shots the device samples internally, so we skip jit (device RNG is stateful)."""
     circuit = build_circuit(n_layers, spec, reupload, seed=seed)
@@ -84,7 +106,9 @@ def make_q_fn(n_layers: int, spec: NoiseSpec, reupload: bool = True, seed: int |
         if sigma > 0:
             k1, k2 = jax.random.split(key)
             theta = theta + sigma * jax.random.normal(k1, theta.shape)
-            lam = lam + sigma * jax.random.normal(k2, lam.shape) / jnp.pi  # perturb encoding angles too
+            lam = (
+                lam + sigma * jax.random.normal(k2, lam.shape) / jnp.pi
+            )  # perturb encoding angles too
         z = jnp.stack(circuit(bits, theta, lam))
         return params["w_out"] * z
 
@@ -95,7 +119,9 @@ def make_q_fn(n_layers: int, spec: NoiseSpec, reupload: bool = True, seed: int |
     def batched_shots(params, bits, key):
         # Finite shots: the device samples internally, so neither jit nor vmap applies.
         keys = jax.random.split(key, bits.shape[0])
-        return jnp.stack([single(bits[i], params, keys[i]) for i in range(bits.shape[0])])
+        return jnp.stack([
+            single(bits[i], params, keys[i]) for i in range(bits.shape[0])
+        ])
 
     if spec.shots:
         return batched_shots

@@ -22,7 +22,7 @@ Conventions (write these in the report):
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 import pennylane as qml
@@ -30,17 +30,17 @@ import pennylane as qml
 
 @dataclass(frozen=True)
 class NoiseSpec:
-    kind: str = "none"           # none | shots | coherent | depolarizing | readout | preset
-    level: float = 0.0           # numeric level for the simple kinds
-    name: str = ""               # preset name
+    kind: str = "none"  # none | shots | coherent | depolarizing | readout | preset
+    level: float = 0.0  # numeric level for the simple kinds
+    name: str = ""  # preset name
     # Preset contents (all optional)
-    p1: float = 0.0              # depolarizing p after each 1-qubit gate
-    p2: float = 0.0              # depolarizing p after each 2-qubit gate (per wire)
+    p1: float = 0.0  # depolarizing p after each 1-qubit gate
+    p2: float = 0.0  # depolarizing p after each 2-qubit gate (per wire)
     readout_p: float = 0.0
-    amp_damp: float = 0.0        # amplitude damping gamma after each gate
-    t1_us: float | None = None   # thermal relaxation (optional)
+    amp_damp: float = 0.0  # amplitude damping gamma after each gate
+    t1_us: float | None = None  # thermal relaxation (optional)
     t2_us: float | None = None
-    gate_us: float = 0.05        # assumed gate duration for thermal relaxation
+    gate_us: float = 0.05  # assumed gate duration for thermal relaxation
     shots: int | None = None
     coherent_sigma: float = 0.0
 
@@ -48,8 +48,15 @@ class NoiseSpec:
     @property
     def needs_mixed(self) -> bool:
         return self.kind in ("depolarizing", "readout") or (
-            self.kind == "preset" and (self.p1 > 0 or self.p2 > 0 or self.readout_p > 0
-                                       or self.amp_damp > 0 or self.t1_us is not None))
+            self.kind == "preset"
+            and (
+                self.p1 > 0
+                or self.p2 > 0
+                or self.readout_p > 0
+                or self.amp_damp > 0
+                or self.t1_us is not None
+            )
+        )
 
     @property
     def label(self) -> str:
@@ -81,7 +88,7 @@ def gate_error_to_depol_p(eps: float, n_qubits: int = 1) -> float:
     PennyLane's channel has lam = 4p/3 on one qubit, so for n=1: eps = 2p/3.
     For n=2 we keep applying the 1-qubit channel per wire and use the 1-qubit map
     as an approximation, which we state in the report."""
-    d = 2 ** n_qubits
+    d = 2**n_qubits
     lam = eps * d / (d - 1)
     return 0.75 * lam if n_qubits == 1 else 0.75 * lam / 2
 
@@ -91,18 +98,32 @@ def gate_error_to_depol_p(eps: float, n_qubits: int = 1) -> float:
 # Presets are simulated with exact expectation values (shots=None) so that they stay
 # jit/vmap-able and so that shot noise remains its own axis in the sweep. The plan's
 # "1000 shots" for Heron is covered by the separate `shots=1000` condition.
-_HERON = dict(p1=gate_error_to_depol_p(3e-4), p2=gate_error_to_depol_p(3e-3, 2), readout_p=1.5e-2,
-              t1_us=150.0, t2_us=100.0)
+_HERON = dict(
+    p1=gate_error_to_depol_p(3e-4),
+    p2=gate_error_to_depol_p(3e-3, 2),
+    readout_p=1.5e-2,
+    t1_us=150.0,
+    t2_us=100.0,
+)
 # Skolik et al. 2022 config (a): 1Q 1e-3, 2Q 1e-2, amplitude damping 3e-4, readout 1e-2.
-_NISQ = dict(p1=gate_error_to_depol_p(1e-3), p2=gate_error_to_depol_p(1e-2, 2), readout_p=1e-2,
-             amp_damp=3e-4)
+_NISQ = dict(
+    p1=gate_error_to_depol_p(1e-3),
+    p2=gate_error_to_depol_p(1e-2, 2),
+    readout_p=1e-2,
+    amp_damp=3e-4,
+)
 PRESETS: dict[str, NoiseSpec] = {
-    "heron2026": NoiseSpec(kind="preset", name="heron2026", **_HERON),
-    "nisq2022": NoiseSpec(kind="preset", name="nisq2022", **_NISQ),
-    "stress": NoiseSpec(kind="preset", name="stress",
-                        p1=min(10 * _HERON["p1"], 0.75), p2=min(10 * _HERON["p2"], 0.75),
-                        readout_p=min(10 * _HERON["readout_p"], 0.5),
-                        t1_us=_HERON["t1_us"] / 10, t2_us=_HERON["t2_us"] / 10),
+    "heron2026": NoiseSpec(kind="preset", name="heron2026", **_HERON),  # pyright: ignore[reportArgumentType]
+    "nisq2022": NoiseSpec(kind="preset", name="nisq2022", **_NISQ),  # pyright: ignore[reportArgumentType]
+    "stress": NoiseSpec(
+        kind="preset",
+        name="stress",
+        p1=min(10 * _HERON["p1"], 0.75),
+        p2=min(10 * _HERON["p2"], 0.75),
+        readout_p=min(10 * _HERON["readout_p"], 0.5),
+        t1_us=_HERON["t1_us"] / 10,
+        t2_us=_HERON["t2_us"] / 10,
+    ),
 }
 
 # The sweep used by Experiment B (17 conditions incl. clean reference).
@@ -178,7 +199,9 @@ def apply_noise(spec: NoiseSpec, wires) -> None:
             qml.AmplitudeDamping(spec.amp_damp, wires=w)
         if spec.t1_us is not None and spec.t2_us is not None:
             # pe = 0: relaxation towards |0>. Durations in the same unit (us).
-            qml.ThermalRelaxationError(0.0, spec.t1_us, spec.t2_us, spec.gate_us, wires=w)
+            qml.ThermalRelaxationError(
+                0.0, spec.t1_us, spec.t2_us, spec.gate_us, wires=w
+            )
 
 
 def perturb_angles(spec: NoiseSpec, rng: np.random.Generator, *arrays):
@@ -187,4 +210,6 @@ def perturb_angles(spec: NoiseSpec, rng: np.random.Generator, *arrays):
     sigma = spec.coherent_sigma
     if sigma <= 0:
         return arrays
-    return tuple(a + rng.normal(0.0, sigma, size=np.shape(a)).astype(np.float32) for a in arrays)
+    return tuple(
+        a + rng.normal(0.0, sigma, size=np.shape(a)).astype(np.float32) for a in arrays
+    )

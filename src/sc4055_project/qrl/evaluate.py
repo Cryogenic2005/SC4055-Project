@@ -15,10 +15,16 @@ A single-task version for FrozenLake is in tasks/frozenlake/evaluate.py (P2).
 
 from __future__ import annotations
 
-from qrl.config import Config
-from qrl.noise import NOISE_MENU
+from .config import Config
+from .noise import NOISE_MENU
 
 
-def evaluate_checkpoint(cfg: Config, checkpoint: str, conditions: list[str] = NOISE_MENU,
-                        n_episodes: int = 100) -> None:
-    raise NotImplementedError("P3: shared evaluation harness not implemented yet; see tasks/frozenlake/evaluate.py")
+def evaluate_checkpoint(
+    cfg: Config,
+    checkpoint: str,
+    conditions: list[str] = NOISE_MENU,
+    n_episodes: int = 100,
+) -> None:
+    raise NotImplementedError(
+        "P3: shared evaluation harness not implemented yet; see tasks/frozenlake/evaluate.py"
+    )

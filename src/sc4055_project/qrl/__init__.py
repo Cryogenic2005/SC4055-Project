@@ -11,4 +11,6 @@ evaluate      Greedy evaluation of a checkpoint under one noise condition.
 logging_utils CSV logger whose columns match docs/analysis_spec columns.
 """
 
-from qrl.config import Config  # noqa: F401
+from .config import Config
+
+__all__ = ["Config"]

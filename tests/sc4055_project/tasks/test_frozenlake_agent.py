@@ -3,8 +3,13 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from qrl.noise import parse_noise
-from tasks.frozenlake.agent import init_params, make_q_fn, count_params, state_to_bits
+from sc4055_project.qrl.noise import parse_noise
+from sc4055_project.tasks.frozenlake.agent import (
+    count_params,
+    init_params,
+    make_q_fn,
+    state_to_bits,
+)
 
 
 def test_bits():
@@ -13,8 +18,17 @@ def test_bits():
     assert state_to_bits(np.array([1, 2])).tolist() == [[1, 0, 0, 0], [0, 1, 0, 0]]
 
 
-@pytest.mark.parametrize("noise", ["none", "coherent=0.1", "depolarizing=0.01", "readout=0.02",
-                                   "preset=heron2026", "shots=100"])
+@pytest.mark.parametrize(
+    "noise",
+    [
+        "none",
+        "coherent=0.1",
+        "depolarizing=0.01",
+        "readout=0.02",
+        "preset=heron2026",
+        "shots=100",
+    ],
+)
 def test_q_shape_and_jit(noise):
     params = init_params(2, jax.random.PRNGKey(0))
     q_fn = make_q_fn(2, parse_noise(noise), seed=0)
@@ -37,6 +51,8 @@ def test_noisy_q_is_contracted():
     params = init_params(2, jax.random.PRNGKey(0))
     bits = jnp.asarray(state_to_bits(np.arange(16)))
     clean = make_q_fn(2, parse_noise("none"))(params, bits, jax.random.PRNGKey(0))
-    noisy = make_q_fn(2, parse_noise("depolarizing=0.1"))(params, bits, jax.random.PRNGKey(0))
+    noisy = make_q_fn(2, parse_noise("depolarizing=0.1"))(
+        params, bits, jax.random.PRNGKey(0)
+    )
     # Q = w z with w=1: depolarizing shrinks expvals toward 0 => |Q| shrinks
     assert float(jnp.abs(noisy).mean()) < float(jnp.abs(clean).mean())

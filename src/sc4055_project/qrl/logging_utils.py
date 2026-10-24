@@ -15,10 +15,28 @@ import csv
 import time
 from pathlib import Path
 
-TRAIN_COLUMNS = ["task", "model", "experiment", "train_noise", "seed",
-                 "episode", "return", "n_params", "wall_s"]
-EVAL_COLUMNS = ["task", "model", "experiment", "train_noise", "seed",
-                "eval_noise_type", "eval_noise_level", "episode", "return"]
+TRAIN_COLUMNS = [
+    "task",
+    "model",
+    "experiment",
+    "train_noise",
+    "seed",
+    "episode",
+    "return",
+    "n_params",
+    "wall_s",
+]
+EVAL_COLUMNS = [
+    "task",
+    "model",
+    "experiment",
+    "train_noise",
+    "seed",
+    "eval_noise_type",
+    "eval_noise_level",
+    "episode",
+    "return",
+]
 RANDOM_COLUMNS = ["task", "r_random"]
 
 
@@ -31,7 +49,7 @@ class CsvLogger:
         self.columns = columns
         self.path.parent.mkdir(parents=True, exist_ok=True)
         new_file = not (append and self.path.exists() and self.path.stat().st_size > 0)
-        self._fh = open(self.path, "a" if append else "w", newline="")
+        self._fh = open(self.path, "a" if append else "w", newline="")  # noqa: SIM115
         self._w = csv.DictWriter(self._fh, fieldnames=columns, extrasaction="raise")
         if new_file:
             self._w.writeheader()
@@ -55,26 +73,61 @@ class CsvLogger:
 
 
 class TrainLogger(CsvLogger):
-    def __init__(self, path, *, task, model, experiment, train_noise, seed, n_params, append=False):
+    def __init__(
+        self,
+        path,
+        *,
+        task,
+        model,
+        experiment,
+        train_noise,
+        seed,
+        n_params,
+        append=False,
+    ):
         super().__init__(path, TRAIN_COLUMNS, append=append)
-        self.fixed = dict(task=task, model=model, experiment=experiment,
-                          train_noise=train_noise, seed=seed, n_params=n_params)
+        self.fixed = dict(
+            task=task,
+            model=model,
+            experiment=experiment,
+            train_noise=train_noise,
+            seed=seed,
+            n_params=n_params,
+        )
         self.t0 = time.perf_counter()
 
     def episode(self, episode: int, ret: float) -> None:
-        self.log(episode=episode, **{"return": float(ret)},
-                 wall_s=round(time.perf_counter() - self.t0, 3), **self.fixed)
+        self.log(
+            episode=episode,
+            **{"return": float(ret)},
+            wall_s=round(time.perf_counter() - self.t0, 3),
+            **self.fixed,
+        )
 
 
 class EvalLogger(CsvLogger):
-    def __init__(self, path, *, task, model, experiment, train_noise, seed, append=False):
+    def __init__(
+        self, path, *, task, model, experiment, train_noise, seed, append=False
+    ):
         super().__init__(path, EVAL_COLUMNS, append=append)
-        self.fixed = dict(task=task, model=model, experiment=experiment,
-                          train_noise=train_noise, seed=seed)
+        self.fixed = dict(
+            task=task,
+            model=model,
+            experiment=experiment,
+            train_noise=train_noise,
+            seed=seed,
+        )
 
-    def episode(self, eval_noise_type: str, eval_noise_level: str, episode: int, ret: float) -> None:
-        self.log(eval_noise_type=eval_noise_type, eval_noise_level=eval_noise_level,
-                 episode=episode, **{"return": float(ret)}, **self.fixed)
+    def episode(
+        self, eval_noise_type: str, eval_noise_level: str, episode: int, ret: float
+    ) -> None:
+        self.log(
+            eval_noise_type=eval_noise_type,
+            eval_noise_level=eval_noise_level,
+            episode=episode,
+            **{"return": float(ret)},
+            **self.fixed,
+        )
 
 
 def write_random_baseline(path: str | Path, task: str, r_random: float) -> None:

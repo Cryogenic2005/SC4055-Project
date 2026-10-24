@@ -1,21 +1,6 @@
-"""Train the FrozenLake VQC agent with DQN (owner: P2).
-
-Examples
-    python tasks/frozenlake/train.py --seed 0                       # Experiment A
-    python tasks/frozenlake/train.py --seed 0 --noise depolarizing=0.01   # Experiment C
-    python tasks/frozenlake/train.py --seed 0 --noise shots=100     # parameter-shift, no backprop
-    python tasks/frozenlake/train.py --seed 0 --slippery            # stochastic map (threshold 0.70)
-    python tasks/frozenlake/train.py --episodes 50 --quick          # smoke run
-
-Writes runs/train/FrozenLake-v1_vqc_<seed>[_<noise>].csv (analysis-spec columns),
-runs/checkpoints/<run_name>/{config.json, ep*.pkl, final.pkl}.
-"""
-
 from __future__ import annotations
 
-import argparse
 import pickle
-import sys
 import time
 from collections import deque
 from pathlib import Path
@@ -25,14 +10,12 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
-ROOT = Path(__file__).resolve().parents[2]
-sys.path.insert(0, str(ROOT))
+from sc4055_project.qrl.config import Config
+from sc4055_project.qrl.envs import make_env
+from sc4055_project.qrl.logging_utils import TrainLogger
+from sc4055_project.qrl.noise import parse_noise
 
-from qrl.config import Config, default_config_for  # noqa: E402
-from qrl.envs import make_env  # noqa: E402
-from qrl.logging_utils import TrainLogger  # noqa: E402
-from qrl.noise import parse_noise  # noqa: E402
-from tasks.frozenlake.agent import init_params, make_q_fn, count_params, state_to_bits  # noqa: E402
+from .agent import count_params, init_params, make_q_fn, state_to_bits
 
 
 def shape_reward(r: float, terminated: bool) -> float:
@@ -45,13 +28,26 @@ def shape_reward(r: float, terminated: bool) -> float:
 
 class Replay:
     def __init__(self, size: int, rng: np.random.Generator):
-        self.s = np.zeros((size, 4), np.float32); self.a = np.zeros(size, np.int32)
-        self.r = np.zeros(size, np.float32); self.s2 = np.zeros((size, 4), np.float32)
-        self.d = np.zeros(size, np.float32); self.n = 0; self.i = 0; self.size = size; self.rng = rng
+        self.s = np.zeros((size, 4), np.float32)
+        self.a = np.zeros(size, np.int32)
+        self.r = np.zeros(size, np.float32)
+        self.s2 = np.zeros((size, 4), np.float32)
+        self.d = np.zeros(size, np.float32)
+        self.n = 0
+        self.i = 0
+        self.size = size
+        self.rng = rng
 
     def add(self, s, a, r, s2, d):
-        self.s[self.i], self.a[self.i], self.r[self.i], self.s2[self.i], self.d[self.i] = s, a, r, s2, d
-        self.i = (self.i + 1) % self.size; self.n = min(self.n + 1, self.size)
+        (
+            self.s[self.i],
+            self.a[self.i],
+            self.r[self.i],
+            self.s2[self.i],
+            self.d[self.i],
+        ) = (s, a, r, s2, d)
+        self.i = (self.i + 1) % self.size
+        self.n = min(self.n + 1, self.size)
 
     def sample(self, b: int):
         idx = self.rng.integers(0, self.n, size=b)
@@ -62,9 +58,13 @@ def make_optimizer(cfg: Config):
     # Separate learning rates per parameter group (TFQ / Skolik recipe).
     labels = {"theta": "circuit", "lam": "input", "w_out": "output"}
     return optax.multi_transform(
-        {"circuit": optax.adam(cfg.lr_circuit), "input": optax.adam(cfg.lr_input),
-         "output": optax.adam(cfg.lr_output)},
-        labels)
+        {
+            "circuit": optax.adam(cfg.lr_circuit),
+            "input": optax.adam(cfg.lr_input),
+            "output": optax.adam(cfg.lr_output),
+        },
+        labels,
+    )
 
 
 def greedy_eval(q_fn, params, env, n_episodes: int, key) -> float:
@@ -79,7 +79,8 @@ def greedy_eval(q_fn, params, env, n_episodes: int, key) -> float:
             key, k = jax.random.split(key)
             a = int(jnp.argmax(q_fn(params, state_to_bits(s)[None], k)[0]))
             s, r, term, trunc, _ = env.step(a)
-            ret += r; done = term or trunc
+            ret += r
+            done = term or trunc
         rets.append(ret)
     return float(np.mean(rets))
 
@@ -114,7 +115,9 @@ def train(cfg: Config, quick: bool = False) -> dict:
         update = jax.jit(update)
 
     env = make_env(cfg.env_id, seed=cfg.seed, max_steps=cfg.max_steps, **cfg.env_kwargs)
-    eval_env = make_env(cfg.env_id, seed=cfg.seed + 10_000, max_steps=cfg.max_steps, **cfg.env_kwargs)
+    eval_env = make_env(
+        cfg.env_id, seed=cfg.seed + 10_000, max_steps=cfg.max_steps, **cfg.env_kwargs
+    )
     best_greedy, best_ep = -np.inf, None
     buf = Replay(cfg.buffer_size, rng)
     run_dir = Path(cfg.run_dir)
@@ -122,20 +125,35 @@ def train(cfg: Config, quick: bool = False) -> dict:
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     cfg.save(ckpt_dir / "config.json")
     n_params = count_params(params)
-    logger = TrainLogger(run_dir / "train" / f"{cfg.run_name}.csv", task=cfg.env_id, model=cfg.model,
-                         experiment=cfg.experiment, train_noise=cfg.noise, seed=cfg.seed, n_params=n_params)
+    logger = TrainLogger(
+        run_dir / "train" / f"{cfg.run_name}.csv",
+        task=cfg.env_id,
+        model=cfg.model,
+        experiment=cfg.experiment,
+        train_noise=cfg.noise,
+        seed=cfg.seed,
+        n_params=n_params,
+    )
     recent = deque(maxlen=100)
     solved_at = None
     steps = 0
     grad_steps = 0
     t0 = time.perf_counter()
-    print(f"[{cfg.run_name}] {n_params} params, noise={spec.label}, device={'mixed' if spec.needs_mixed else 'qubit'}")
+    print(
+        f"[{cfg.run_name}] {n_params} params, noise={spec.label}, device={'mixed' if spec.needs_mixed else 'qubit'}"
+    )
 
     for ep in range(cfg.n_episodes):
         if cfg.epsilon_decay_rate:
-            eps = max(cfg.epsilon_end, cfg.epsilon_start * cfg.epsilon_decay_rate ** ep)
+            eps = max(cfg.epsilon_end, cfg.epsilon_start * cfg.epsilon_decay_rate**ep)
         else:
-            eps = max(cfg.epsilon_end, cfg.epsilon_start - (cfg.epsilon_start - cfg.epsilon_end) * ep / cfg.epsilon_decay_episodes)
+            eps = max(
+                cfg.epsilon_end,
+                cfg.epsilon_start
+                - (cfg.epsilon_start - cfg.epsilon_end)
+                * ep
+                / cfg.epsilon_decay_episodes,
+            )
         s, _ = env.reset()
         sb = state_to_bits(s)
         done, ret = False, 0.0
@@ -147,9 +165,9 @@ def train(cfg: Config, quick: bool = False) -> dict:
                 a = int(jnp.argmax(q_fn(params, sb[None], k)[0]))
             s2, r, term, trunc, _ = env.step(a)
             s2b = state_to_bits(s2)
-            r_train = shape_reward(r, term) if cfg.reward_shaping else r
+            r_train = shape_reward(r, term) if cfg.reward_shaping else r  # pyright: ignore[reportArgumentType]
             buf.add(sb, a, r_train, s2b, float(term))
-            sb, ret, done, steps = s2b, ret + r, term or trunc, steps + 1
+            sb, ret, done, steps = s2b, ret + r, term or trunc, steps + 1  # pyright: ignore[reportOperatorIssue]
             if buf.n >= cfg.learning_starts and steps % cfg.train_every == 0:
                 key, k = jax.random.split(key)
                 batch = buf.sample(cfg.batch_size)
@@ -163,17 +181,23 @@ def train(cfg: Config, quick: bool = False) -> dict:
         if solved_at is None and len(recent) == 100 and avg >= cfg.threshold:
             solved_at = ep
         if ep % cfg.log_every == 0 or ep == cfg.n_episodes - 1:
-            print(f"ep {ep:5d}  return {ret:5.1f}  avg100 {avg:.3f}  eps {eps:.2f}  {time.perf_counter()-t0:7.1f}s")
+            print(
+                f"ep {ep:5d}  return {ret:5.1f}  avg100 {avg:.3f}  eps {eps:.2f}  {time.perf_counter() - t0:7.1f}s"
+            )
         if cfg.checkpoint_every and ep % cfg.checkpoint_every == 0 and ep > 0:
             with open(ckpt_dir / f"ep{ep}.pkl", "wb") as fh:
                 pickle.dump(jax.device_get(params), fh)
             key, k = jax.random.split(key)
             g = greedy_eval(q_fn, params, eval_env, cfg.eval_episodes, k)
-            if g >= best_greedy:   # >= so a later, equally good checkpoint wins (more training)
+            if (
+                g >= best_greedy
+            ):  # >= so a later, equally good checkpoint wins (more training)
                 best_greedy, best_ep = g, ep
                 with open(ckpt_dir / "best.pkl", "wb") as fh:
                     pickle.dump(jax.device_get(params), fh)
-            print(f"   [eval ep {ep}] greedy mean over {cfg.eval_episodes} eps = {g:.3f}  (best {best_greedy:.3f} @ ep {best_ep})")
+            print(
+                f"   [eval ep {ep}] greedy mean over {cfg.eval_episodes} eps = {g:.3f}  (best {best_greedy:.3f} @ ep {best_ep})"
+            )
         if quick and ep >= 5:
             break
 
@@ -186,42 +210,18 @@ def train(cfg: Config, quick: bool = False) -> dict:
         with open(ckpt_dir / "best.pkl", "wb") as fh:
             pickle.dump(jax.device_get(params), fh)
     logger.close()
-    env.close(); eval_env.close()
-    out = {"final_score": float(np.mean(recent)), "solved_at": solved_at, "final_greedy": final_greedy,
-           "best_greedy": best_greedy, "best_ep": best_ep,
-           "wall_s": time.perf_counter() - t0, "n_params": n_params,
-           "checkpoint": str(ckpt_dir / "final.pkl"), "best_checkpoint": str(ckpt_dir / "best.pkl")}
+    env.close()
+    eval_env.close()
+    out = {
+        "final_score": float(np.mean(recent)),
+        "solved_at": solved_at,
+        "final_greedy": final_greedy,
+        "best_greedy": best_greedy,
+        "best_ep": best_ep,
+        "wall_s": time.perf_counter() - t0,
+        "n_params": n_params,
+        "checkpoint": str(ckpt_dir / "final.pkl"),
+        "best_checkpoint": str(ckpt_dir / "best.pkl"),
+    }
     print(out)
     return out
-
-
-def main(argv=None):
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--seed", type=int, default=0)
-    ap.add_argument("--noise", default="none", help="none | depolarizing=p | coherent=sigma | readout=p | shots=N | preset=name")
-    ap.add_argument("--layers", type=int, default=None)
-    ap.add_argument("--episodes", type=int, default=None)
-    ap.add_argument("--run-dir", default="runs")
-    ap.add_argument("--eps-decay", type=int, default=None, help="linear epsilon decay length in episodes (overrides multiplicative)")
-    ap.add_argument("--no-shaping", action="store_true", help="disable Chen-style reward shaping")
-    ap.add_argument("--lr", type=float, default=None, help="circuit learning rate")
-    ap.add_argument("--reupload", action="store_true", help="data re-uploading (default off for basis encoding)")
-    ap.add_argument("--quick", action="store_true", help="stop after a few episodes (smoke test)")
-    ap.add_argument("--slippery", action="store_true",
-                    help="use the stochastic registered env (is_slippery=True); default is the deterministic Chen et al. map")
-    a = ap.parse_args(argv)
-    cfg = default_config_for("FrozenLake-v1", "vqc", seed=a.seed, noise=a.noise, run_dir=a.run_dir,
-                             **({"n_layers": a.layers} if a.layers else {}),
-                             **({"n_episodes": a.episodes} if a.episodes else {}),
-                             **({"epsilon_decay_episodes": a.eps_decay, "epsilon_decay_rate": None} if a.eps_decay else {}),
-                             **({"reward_shaping": False} if a.no_shaping else {}),
-                             **({"lr_circuit": a.lr} if a.lr else {}),
-                             **({"data_reuploading": True} if a.reupload else {}),
-                             tag="slip" if a.slippery else "")
-    if a.slippery:
-        cfg.env_kwargs = {"is_slippery": True}
-    return train(cfg, quick=a.quick)
-
-
-if __name__ == "__main__":
-    main()

@@ -2,14 +2,19 @@
 
 import math
 
-import jax
-import jax.numpy as jnp
-import numpy as np
 import pennylane as qml
 import pytest
 
-from qrl.noise import (NOISE_MENU, PRESETS, NoiseSpec, apply_noise, apply_readout_noise,
-                       gate_error_to_depol_p, make_device, parse_noise)
+from sc4055_project.qrl.noise import (
+    NOISE_MENU,
+    PRESETS,
+    NoiseSpec,
+    apply_noise,
+    apply_readout_noise,
+    gate_error_to_depol_p,
+    make_device,
+    parse_noise,
+)
 
 
 def _z_after_prep(spec: NoiseSpec, angle: float = 0.0):
@@ -62,7 +67,9 @@ def test_readout_flip_scales_z_by_one_minus_two_p():
 
 
 def test_noise_free_is_exact():
-    assert _z_after_prep(parse_noise("none"), angle=math.pi / 3) == pytest.approx(math.cos(math.pi / 3), abs=1e-9)
+    assert _z_after_prep(parse_noise("none"), angle=math.pi / 3) == pytest.approx(
+        math.cos(math.pi / 3), abs=1e-9
+    )
 
 
 def test_device_selection():
@@ -91,5 +98,10 @@ def test_presets_run_and_stress_is_worse_than_heron():
 
 def test_shots_device_returns_noisy_but_unbiased_estimate():
     spec = parse_noise("shots=1000")
-    vals = [_z_after_prep(NoiseSpec(kind="shots", level=1000, shots=1000), angle=math.pi / 2) for _ in range(5)]
-    assert all(abs(v) < 0.2 for v in vals)   # true value 0, 1000 shots -> std ~0.03
+    vals = [
+        _z_after_prep(
+            NoiseSpec(kind="shots", level=1000, shots=1000), angle=math.pi / 2
+        )
+        for _ in range(5)
+    ]
+    assert all(abs(v) < 0.2 for v in vals)  # true value 0, 1000 shots -> std ~0.03
