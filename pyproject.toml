@@ -55,7 +55,8 @@ build-backend = "setuptools.build_meta"
 [tool.ruff]
 line-length = 88
 target-version = "py312"
-include = ["src", "tests"]
+include = ["*.py", "*.pyi"]
+src = ["src"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
