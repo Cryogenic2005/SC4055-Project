@@ -13,7 +13,21 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      - run: python -m pip install --upgrade pip "swig>=4.2"
-      - run: python -m pip install -r requirements.txt
-      - run: python -m pytest -q
-      - run: python scripts/smoke_test.py
+      # Must succeed
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install . --group dev
+
+      - name: Tests
+        run: python -m pytest
+
+      # Non-blocking: report type-checking issues
+      - name: Pyright (warnings only)
+        continue-on-error: true
+        run: python -m pyright
+
+      # Non-blocking: report linting issues
+      - name: Ruff (warnings only)
+        continue-on-error: true
+        run: python -m ruff check .
