@@ -65,6 +65,9 @@ class Config:
     epsilon_decay_rate: float | None = None   # if set: eps = max(end, start * rate**episode) (multiplicative)
     reward_shaping: bool = False    # FrozenLake only: train on +1 goal / -0.2 hole / -0.01 step (Chen et al.);
                                     # the LOGGED return is always the raw env return
+    reward_scale: float = 1.0       # multiplier for the TD target only; the LOGGED return is always raw.
+                                    # LunarLander: terminal rewards are +-100 but the readout is a bounded
+                                    # <Z>, so its train.py defaults to 0.01. Other tasks keep 1.0.
     lr_circuit: float = 1e-3
     lr_input: float = 1e-3
     lr_output: float = 0.1
@@ -153,8 +156,16 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
                             epsilon_decay_episodes=500, target_update_every=1, lr_circuit=1e-3),
         "Acrobot-v1": dict(n_layers=3, n_episodes=600, batch_size=32, learning_starts=1000,
                            epsilon_decay_episodes=200),
+        # lr_output was 0.1, which under Adam moves each readout weight by ~0.1 per
+        # step: |w_out| ran to ~50 while the TD targets are O(1), so the Q-function
+        # diverged by a factor of ~30 and the agent stayed at random. 1e-2 keeps
+        # |w_out| ~3 and lets the VQC actually land (verified 25 Oct).
+        # epsilon decay stretched to 800 episodes: at 400 the policy went greedy
+        # before the Q-function had settled and never recovered.
         "LunarLander-v3": dict(n_layers=4, n_episodes=1000, batch_size=64, learning_starts=2000,
-                               epsilon_decay_episodes=400, buffer_size=50_000),
+                               epsilon_decay_episodes=800, epsilon_end=0.05,
+                               buffer_size=50_000, lr_output=1e-2,
+                               reward_scale=0.01),  # terminal +-100 vs bounded <Z>; logged return stays raw
     }
     d = dict(per_task.get(env_id, {}))
     d.update(kw)
