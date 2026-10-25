@@ -9,10 +9,21 @@ FrozenLake training run writes a CSV with the agreed columns.
 
 from __future__ import annotations
 
+import csv
 import tempfile
 import time
 import warnings
 from pathlib import Path
+
+import gymnasium as gym
+import jax
+import jax.numpy as jnp
+
+from sc4055_project.frozenlake import main
+from sc4055_project.qrl.agent import init_params
+from sc4055_project.qrl.logging_utils import TRAIN_COLUMNS
+from sc4055_project.qrl.noise import parse_noise
+from sc4055_project.tasks.frozenlake.agent import make_q_fn, state_to_bits
 
 
 def test_versions():
@@ -23,26 +34,18 @@ def test_versions():
     assert jax.__version__.startswith("0.10"), jax.__version__
 
 
-def test_jitted_qnode():
+def test_jitted_qnode(config_N5):
     """Check that a jitted 4-qubit QNode runs fast."""
-    import jax
-    import jax.numpy as jnp
 
-    from sc4055_project.qrl.noise import parse_noise
-    from sc4055_project.tasks.frozenlake.agent import (
-        init_params,
-        make_q_fn,
-        state_to_bits,
-    )
-
-    # Initialization: 5 layers, 4 qubits, 3 params per qubit, 4 output weights
-    params = init_params(5, jax.random.PRNGKey(0))
-    q = make_q_fn(5, parse_noise("none"))
+    params = init_params(config_N5, jax.random.PRNGKey(0))  # pyright: ignore[reportArgumentType]
+    q = make_q_fn(config_N5.n_layers, parse_noise("none"))
     bits = jnp.asarray(state_to_bits(jnp.arange(16)))  # pyright: ignore[reportArgumentType]
 
     # Flush compilation overhead: run once before timing
     q(params, bits, jax.random.PRNGKey(0)).block_until_ready()
 
+    # Time 20 runs and check that the average is below 50 ms
+    # (expected for a jitted 4-qubit QNode on a laptop CPU).
     t = time.perf_counter()
     for _ in range(20):
         q(params, bits, jax.random.PRNGKey(0)).block_until_ready()
@@ -57,27 +60,15 @@ def test_jitted_qnode():
         )
 
 
-def test_mixed_device():
-    import jax
-    import jax.numpy as jnp
-
-    from sc4055_project.qrl.noise import parse_noise
-    from sc4055_project.tasks.frozenlake.agent import (
-        init_params,
-        make_q_fn,
-        state_to_bits,
-    )
-
-    params = init_params(2, jax.random.PRNGKey(0))
-    q = make_q_fn(2, parse_noise("preset=heron2026"))
+def test_mixed_device(config):
+    params = init_params(config, jax.random.PRNGKey(0))  # pyright: ignore[reportArgumentType]
+    q = make_q_fn(config.n_layers, parse_noise("preset=heron2026"))
     out = q(params, jnp.asarray(state_to_bits(jnp.arange(4))), jax.random.PRNGKey(0))  # pyright: ignore[reportArgumentType]
     assert out.shape == (4, 4)
 
 
 def test_envs():
     """Check that all four Gymnasium environments are accessible."""
-    import gymnasium as gym
-
     for e in ["FrozenLake-v1", "CartPole-v1", "Acrobot-v1", "LunarLander-v3"]:
         env = gym.make(e)
         env.reset(seed=0)
@@ -85,11 +76,6 @@ def test_envs():
 
 
 def test_tiny_training_run():
-    import csv
-
-    from sc4055_project.frozenlake import main
-    from sc4055_project.qrl.logging_utils import TRAIN_COLUMNS
-
     with tempfile.TemporaryDirectory() as d:
         main([
             "train",

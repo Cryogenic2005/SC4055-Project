@@ -34,21 +34,6 @@ N_QUBITS = 4
 N_ACTIONS = 4
 
 
-def init_params(n_layers: int, key, reupload: bool = True) -> dict:
-    k1, k2 = jax.random.split(key)
-    return {
-        "theta": jax.random.uniform(
-            k1, (n_layers, N_QUBITS, 3), minval=0.0, maxval=2 * jnp.pi
-        ),
-        "lam": jnp.ones((n_layers if reupload else 1, N_QUBITS)),  # input scaling
-        "w_out": jnp.ones((N_ACTIONS,)),
-    }
-
-
-def count_params(params) -> int:
-    return int(sum(p.size for p in jax.tree_util.tree_leaves(params)))
-
-
 def build_circuit(
     n_layers: int,
     spec: NoiseSpec,

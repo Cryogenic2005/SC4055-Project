@@ -10,12 +10,13 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
+from sc4055_project.qrl.agent import count_params, init_params
 from sc4055_project.qrl.config import Config
 from sc4055_project.qrl.envs import make_env
 from sc4055_project.qrl.logging_utils import TrainLogger
 from sc4055_project.qrl.noise import parse_noise
 
-from .agent import count_params, init_params, make_q_fn, state_to_bits
+from .agent import make_q_fn, state_to_bits
 
 
 def shape_reward(r: float, terminated: bool) -> float:
@@ -90,7 +91,7 @@ def train(cfg: Config, quick: bool = False) -> dict:
     key = jax.random.PRNGKey(cfg.seed)
     rng = np.random.default_rng(cfg.seed)
     key, k_init = jax.random.split(key)
-    params = init_params(cfg.n_layers, k_init, cfg.data_reuploading)
+    params = init_params(cfg, k_init)
     target = params
     q_fn = make_q_fn(cfg.n_layers, spec, cfg.data_reuploading, seed=cfg.seed)
     opt = make_optimizer(cfg)

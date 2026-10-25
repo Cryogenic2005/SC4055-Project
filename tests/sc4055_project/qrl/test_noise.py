@@ -97,7 +97,7 @@ def test_presets_run_and_stress_is_worse_than_heron():
 
 
 def test_shots_device_returns_noisy_but_unbiased_estimate():
-    spec = parse_noise("shots=1000")
+    _spec = parse_noise("shots=1000")
     vals = [
         _z_after_prep(
             NoiseSpec(kind="shots", level=1000, shots=1000), angle=math.pi / 2
