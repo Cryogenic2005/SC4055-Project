@@ -20,10 +20,10 @@ import jax
 import jax.numpy as jnp
 
 from sc4055_project.frozenlake import main
-from sc4055_project.qrl.agent import init_params
+from sc4055_project.qrl.agent import init_params, make_q_fn
 from sc4055_project.qrl.logging_utils import TRAIN_COLUMNS
 from sc4055_project.qrl.noise import parse_noise
-from sc4055_project.tasks.frozenlake.agent import make_q_fn, state_to_bits
+from sc4055_project.tasks.frozenlake.agent import state_to_bits
 
 
 def test_versions():
@@ -38,7 +38,7 @@ def test_jitted_qnode(config_N5):
     """Check that a jitted 4-qubit QNode runs fast."""
 
     params = init_params(config_N5, jax.random.PRNGKey(0))  # pyright: ignore[reportArgumentType]
-    q = make_q_fn(config_N5.n_layers, parse_noise("none"))
+    q = make_q_fn(config_N5, parse_noise("none"))
     bits = jnp.asarray(state_to_bits(jnp.arange(16)))  # pyright: ignore[reportArgumentType]
 
     # Flush compilation overhead: run once before timing
@@ -62,7 +62,7 @@ def test_jitted_qnode(config_N5):
 
 def test_mixed_device(config):
     params = init_params(config, jax.random.PRNGKey(0))  # pyright: ignore[reportArgumentType]
-    q = make_q_fn(config.n_layers, parse_noise("preset=heron2026"))
+    q = make_q_fn(config, parse_noise("preset=heron2026"))
     out = q(params, jnp.asarray(state_to_bits(jnp.arange(4))), jax.random.PRNGKey(0))  # pyright: ignore[reportArgumentType]
     assert out.shape == (4, 4)
 

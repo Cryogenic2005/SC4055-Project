@@ -35,9 +35,10 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 
+from sc4055_project.qrl.agent import make_q_fn
 from sc4055_project.qrl.config import default_config_for
 from sc4055_project.qrl.noise import parse_noise
-from sc4055_project.tasks.frozenlake.agent import make_q_fn, state_to_bits
+from sc4055_project.tasks.frozenlake.agent import state_to_bits
 
 N_STATES = 16
 
@@ -50,15 +51,19 @@ def frozen_lake_tables(n_states: int = N_STATES):
     return transitions
 
 
-def optimal_q(transitions, n_states: int = N_STATES, gamma: float = 0.999) -> np.ndarray:
+def optimal_q(
+    transitions, n_states: int = N_STATES, gamma: float = 0.999
+) -> np.ndarray:
     """Q*(s, a) by value iteration, for the `agree` measure."""
     v = np.zeros(n_states)
     for _ in range(2000):
         q = np.zeros((n_states, 4))
         for s in range(n_states):
             for a, branches in transitions[s].items():
-                q[s, a] = sum(p * (r + gamma * (0.0 if done else v[s2]))
-                              for p, s2, r, done in branches)
+                q[s, a] = sum(
+                    p * (r + gamma * (0.0 if done else v[s2]))
+                    for p, s2, r, done in branches
+                )
         if np.max(np.abs(q.max(axis=1) - v)) < 1e-12:
             v = q.max(axis=1)
             break
@@ -69,8 +74,11 @@ def optimal_q(transitions, n_states: int = N_STATES, gamma: float = 0.999) -> np
 def decision_states(transitions, n_states: int = N_STATES) -> list[int]:
     """States where a choice still matters: not a hole, not the goal."""
     return [
-        s for s in range(n_states)
-        if not all(done for branches in transitions[s].values() for _, _, _, done in branches)
+        s
+        for s in range(n_states)
+        if not all(
+            done for branches in transitions[s].values() for _, _, _, done in branches
+        )
     ]
 
 
@@ -86,10 +94,12 @@ def solved_from(q: np.ndarray, transitions, start: int, max_steps: int = 100) ->
     return False
 
 
-def probe(params, cfg, transitions, q_star, states, level: float) -> tuple[float, float]:
+def probe(
+    params, cfg, transitions, q_star, states, level: float
+) -> tuple[float, float]:
     """(solved fraction, optimal-action agreement) at one evaluation noise level."""
     spec = parse_noise("none" if level == 0 else f"depolarizing={level:g}")
-    q_fn = make_q_fn(cfg.n_layers, spec, cfg.data_reuploading, seed=0)
+    q_fn = make_q_fn(cfg, spec, seed=0)
     bits = state_to_bits(np.arange(N_STATES))
     q = np.asarray(q_fn(params, jnp.asarray(bits), jax.random.PRNGKey(0)))
 
@@ -110,17 +120,49 @@ def checkpoint_for(run_root: Path, noise: str, seed: int, tag: str) -> Path:
 
 
 def main() -> None:
-    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     p.add_argument("--runs", type=Path, default=Path("analysis_out/fl_sweep/runs"))
-    p.add_argument("--arms", nargs="+", default=["none", "depolarizing=0.0025",
-                                                 "depolarizing=0.005", "depolarizing=0.01",
-                                                 "depolarizing=0.02"])
-    p.add_argument("--tags", nargs="+", default=None,
-                   help="arm tag per --arms entry (default: T<scale> from the 0.01 base)")
+    p.add_argument(
+        "--arms",
+        nargs="+",
+        default=[
+            "none",
+            "depolarizing=0.0025",
+            "depolarizing=0.005",
+            "depolarizing=0.01",
+            "depolarizing=0.02",
+        ],
+    )
+    p.add_argument(
+        "--tags",
+        nargs="+",
+        default=None,
+        help="arm tag per --arms entry (default: T<scale> from the 0.01 base)",
+    )
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
-    p.add_argument("--levels", type=float, nargs="+",
-                   default=[0.0, 0.0025, 0.005, 0.0075, 0.01, 0.0125, 0.015, 0.0175, 0.02, 0.025, 0.03])
-    p.add_argument("--out", type=Path, default=Path("analysis_out/fl_sweep/policy_probe.csv"))
+    p.add_argument(
+        "--levels",
+        type=float,
+        nargs="+",
+        default=[
+            0.0,
+            0.0025,
+            0.005,
+            0.0075,
+            0.01,
+            0.0125,
+            0.015,
+            0.0175,
+            0.02,
+            0.025,
+            0.03,
+        ],
+    )
+    p.add_argument(
+        "--out", type=Path, default=Path("analysis_out/fl_sweep/policy_probe.csv")
+    )
     args = p.parse_args()
 
     cfg = default_config_for("FrozenLake-v1")
@@ -128,7 +170,8 @@ def main() -> None:
     q_star = optimal_q(transitions)
     states = decision_states(transitions)
     tags = args.tags or [
-        f"T{(0.0 if a == 'none' else float(a.split('=')[1]) / 0.01):g}" for a in args.arms
+        f"T{(0.0 if a == 'none' else float(a.split('=')[1]) / 0.01):g}"
+        for a in args.arms
     ]
 
     rows = []
@@ -142,8 +185,16 @@ def main() -> None:
                 params = pickle.load(fh)
             for level in args.levels:
                 solved, agree = probe(params, cfg, transitions, q_star, states, level)
-                rows.append(dict(train_noise=arm, scale=float(tag[1:]), seed=seed,
-                                 eval_noise=level, solved=solved, agree=agree))
+                rows.append(
+                    dict(
+                        train_noise=arm,
+                        scale=float(tag[1:]),
+                        seed=seed,
+                        eval_noise=level,
+                        solved=solved,
+                        agree=agree,
+                    )
+                )
         print(f"  probed {arm}", flush=True)
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
@@ -163,10 +214,22 @@ def main() -> None:
         for axis, key in zip(axes, ("solved", "agree")):
             xs = sorted({r["eval_noise"] for r in sub})
             ys = [np.mean([r[key] for r in sub if r["eval_noise"] == x]) for x in xs]
-            axis.plot(xs, ys, "o-", color=colour, lw=2, ms=4,
-                      label=f"trained at {arm} ({sub[0]['scale']:g}x deployment)")
-    for axis, title in zip(axes, ("Behaviour: solved from how many starts?",
-                                  "Mechanism: is the action still optimal?")):
+            axis.plot(
+                xs,
+                ys,
+                "o-",
+                color=colour,
+                lw=2,
+                ms=4,
+                label=f"trained at {arm} ({sub[0]['scale']:g}x deployment)",
+            )
+    for axis, title in zip(
+        axes,
+        (
+            "Behaviour: solved from how many starts?",
+            "Mechanism: is the action still optimal?",
+        ),
+    ):
         axis.axvline(0.01, color="0.4", ls="--", lw=1)
         axis.set_xlabel("evaluation depolarizing noise")
         axis.set_ylim(-0.05, 1.05)
@@ -175,10 +238,19 @@ def main() -> None:
     axes[0].set_ylabel(f"fraction of {len(states)} starting states solved")
     axes[1].set_ylabel(f"fraction of {len(states)} states with an optimal action")
     handles, labels = axes[0].get_legend_handles_labels()
-    fig.suptitle("Training under noise keeps the policy right at higher noise levels", y=1.02)
+    fig.suptitle(
+        "Training under noise keeps the policy right at higher noise levels", y=1.02
+    )
     fig.tight_layout(rect=(0, 0.06, 1, 1))
-    fig.legend(handles, labels, loc="lower center", ncol=3, fontsize=8,
-               frameon=False, bbox_to_anchor=(0.5, 0.0))
+    fig.legend(
+        handles,
+        labels,
+        loc="lower center",
+        ncol=3,
+        fontsize=8,
+        frameon=False,
+        bbox_to_anchor=(0.5, 0.0),
+    )
     png = args.out.with_name("policy_probe.png")
     fig.savefig(png, dpi=160, bbox_inches="tight")
     print(f"wrote {png}")

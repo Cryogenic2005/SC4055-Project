@@ -3,9 +3,9 @@ import jax.numpy as jnp
 import numpy as np
 import pytest
 
-from sc4055_project.qrl.agent import count_params, init_params
+from sc4055_project.qrl.agent import count_params, init_params, make_q_fn
 from sc4055_project.qrl.noise import parse_noise
-from sc4055_project.tasks.frozenlake.agent import make_q_fn, state_to_bits
+from sc4055_project.tasks.frozenlake.agent import state_to_bits
 
 
 def test_bits():
@@ -27,7 +27,7 @@ def test_bits():
 )
 def test_q_shape_and_jit(config, noise):
     params = init_params(config, jax.random.PRNGKey(0))
-    q_fn = make_q_fn(config.n_layers, parse_noise(noise), seed=0)
+    q_fn = make_q_fn(config, parse_noise(noise))
     bits = jnp.asarray(state_to_bits(np.arange(3)))
     q = q_fn(params, bits, jax.random.PRNGKey(1))
     assert q.shape == (3, 4)
@@ -37,7 +37,7 @@ def test_q_shape_and_jit(config, noise):
 
 def test_gradient_flows(config):
     params = init_params(config, jax.random.PRNGKey(0))
-    q_fn = make_q_fn(config.n_layers, parse_noise("none"), seed=0)
+    q_fn = make_q_fn(config, parse_noise("none"))
     bits = jnp.asarray(state_to_bits(np.arange(4)))
     g = jax.grad(lambda p: q_fn(p, bits, jax.random.PRNGKey(0)).sum())(params)
     assert float(jnp.abs(g["theta"]).sum()) > 0
@@ -46,10 +46,8 @@ def test_gradient_flows(config):
 def test_noisy_q_is_contracted(config):
     params = init_params(config, jax.random.PRNGKey(0))
     bits = jnp.asarray(state_to_bits(np.arange(16)))
-    clean = make_q_fn(config.n_layers, parse_noise("none"))(
-        params, bits, jax.random.PRNGKey(0)
-    )
-    noisy = make_q_fn(config.n_layers, parse_noise("depolarizing=0.1"))(
+    clean = make_q_fn(config, parse_noise("none"))(params, bits, jax.random.PRNGKey(0))
+    noisy = make_q_fn(config, parse_noise("depolarizing=0.1"))(
         params, bits, jax.random.PRNGKey(0)
     )
     # Q = w z with w=1: depolarizing shrinks expvals toward 0 => |Q| shrinks

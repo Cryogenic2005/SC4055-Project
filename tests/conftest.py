@@ -9,6 +9,7 @@ class TestConfig:
     n_qubits: int = 4
     n_actions: int = 4
     data_reuploading: bool = True
+    seed: int = 0
 
 
 @pytest.fixture

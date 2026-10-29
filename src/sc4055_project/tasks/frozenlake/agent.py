@@ -18,99 +18,9 @@ qrl.noise.apply_noise after every gate when a density-matrix device is used.
 
 from __future__ import annotations
 
-import jax
-import jax.numpy as jnp
 import numpy as np
-import pennylane as qml
-
-from sc4055_project.qrl.noise import (
-    NoiseSpec,
-    apply_noise,
-    apply_readout_noise,
-    make_device,
-)
 
 N_QUBITS = 4
-N_ACTIONS = 4
-
-
-def build_circuit(
-    n_layers: int,
-    spec: NoiseSpec,
-    reupload: bool = True,
-    seed: int | None = None,
-    diff_method: str | None = None,
-):
-    """Return a QNode f(bits, theta, lam) -> list of 4 expvals."""
-    dev = make_device(N_QUBITS, spec, seed=seed)
-    if diff_method is None:
-        # Real hardware cannot backprop: with shots use parameter-shift, else backprop.
-        diff_method = "parameter-shift" if dev.shots else "backprop"
-
-    def encode(bits, lam_l):
-        for i in range(N_QUBITS):
-            qml.RX(jnp.pi * bits[i] * lam_l[i], wires=i)
-            apply_noise(spec, [i])
-
-    @qml.qnode(dev, interface="jax", diff_method=diff_method)
-    def circuit(bits, theta, lam):
-        encode(bits, lam[0])
-        for l in range(n_layers):
-            if reupload and l > 0:
-                encode(bits, lam[l])
-            for i in range(N_QUBITS):
-                qml.RX(theta[l, i, 0], wires=i)
-                apply_noise(spec, [i])
-                qml.RY(theta[l, i, 1], wires=i)
-                apply_noise(spec, [i])
-                qml.RZ(theta[l, i, 2], wires=i)
-                apply_noise(spec, [i])
-            for i in range(N_QUBITS):
-                qml.CZ(wires=[i, (i + 1) % N_QUBITS])
-                apply_noise(spec, [i, (i + 1) % N_QUBITS])
-        apply_readout_noise(spec, range(N_ACTIONS))
-        return [qml.expval(qml.PauliZ(i)) for i in range(N_ACTIONS)]
-
-    return circuit
-
-
-def make_q_fn(
-    n_layers: int,
-    spec: NoiseSpec,
-    reupload: bool = True,
-    seed: int | None = None,
-    jit: bool = True,
-):
-    """Batched Q-function. Coherent over-rotation is drawn per call from `key`.
-    With shots the device samples internally, so we skip jit (device RNG is stateful)."""
-    circuit = build_circuit(n_layers, spec, reupload, seed=seed)
-    sigma = spec.coherent_sigma
-
-    def single(bits, params, key):
-        theta, lam = params["theta"], params["lam"]
-        if sigma > 0:
-            k1, k2 = jax.random.split(key)
-            theta = theta + sigma * jax.random.normal(k1, theta.shape)
-            lam = (
-                lam + sigma * jax.random.normal(k2, lam.shape) / jnp.pi
-            )  # perturb encoding angles too
-        z = jnp.stack(circuit(bits, theta, lam))
-        return params["w_out"] * z
-
-    def batched(params, bits, key):
-        keys = jax.random.split(key, bits.shape[0])
-        return jax.vmap(single, in_axes=(0, None, 0))(bits, params, keys)
-
-    def batched_shots(params, bits, key):
-        # Finite shots: the device samples internally, so neither jit nor vmap applies.
-        keys = jax.random.split(key, bits.shape[0])
-        return jnp.stack([
-            single(bits[i], params, keys[i]) for i in range(bits.shape[0])
-        ])
-
-    if spec.shots:
-        return batched_shots
-    return jax.jit(batched) if jit else batched
 
 
 def state_to_bits(s: int | np.ndarray) -> np.ndarray:
