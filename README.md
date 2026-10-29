@@ -130,7 +130,7 @@ src/sc4055_project/  Project source code
     frozenlake/        P2: agent.py, train.py, evaluate.py (complete reference implementation)
     cartpole/          P1
     acrobot/           P3
-    lunarlander/       P4
+    lunarlander/       P4: agent.py, train.py, evaluate.py (hybrid + encoder_only + MLP baselines)
   frozenlake.py        Entry point for the frozenlake task
   baseline.py
 tests/               pytest: noise contractions, agent shapes/jit/gradients, logger columns
@@ -147,6 +147,8 @@ baseline [task]       # Run baseline on the specified task (or all of them)
 # Equivalent to `python src/sc4055_project/frozenlake.py (...)`
 frozenlake train      # Train the model on FrozenLake-v1 task
 frozenlake evaluate   # Evaluate the model on FrozenLake-v1 task
+lunarlander train     # Train the hybrid VQC (or --model encoder_only|mlp_small|mlp_large) on LunarLander-v3
+lunarlander evaluate  # Evaluate a LunarLander checkpoint under the 17-condition noise menu
 ``` 
 
 ### For developers

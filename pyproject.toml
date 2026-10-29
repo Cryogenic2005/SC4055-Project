@@ -47,6 +47,7 @@ jupyter = ["ipykernel>=7.4.0"]
 [project.scripts]
 baseline = "sc4055_project.baseline:main"
 frozenlake = "sc4055_project.frozenlake:main"
+lunarlander = "sc4055_project.lunarlander:main"
 
 [build-system]
 requires = ["setuptools>=74,<82"]
