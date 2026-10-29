@@ -1,0 +1,5 @@
+task,model,experiment,train_noise,n_seeds,final_mean,ci_lo,ci_hi,solved_frac,median_episodes_to_solve,n_params,wall_s_mean
+FrozenLake-v1,vqc,A,none,5,0.99,0.978,1.0,1.0,223.0,68,75.3632
+FrozenLake-v1,vqc,C,coherent=0.1,5,0.726,0.5900000000000001,0.8480000000000001,0.8,403.5,68,254.87639999999996
+FrozenLake-v1,vqc,C,depolarizing=0.01,5,0.986,0.982,0.99,1.0,203.0,68,273.3004
+FrozenLake-v1,vqc,C,preset=heron2026,5,0.99,0.982,0.998,1.0,222.0,68,215.4246

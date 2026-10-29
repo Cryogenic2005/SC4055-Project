@@ -25,11 +25,14 @@ def evaluate(
         bits = np.stack([(s >> i) & 1 for i in range(cfg.n_qubits)], axis=-1)  # pyright: ignore[reportArgumentType]
         return bits.astype(np.float32)
 
+    # Evaluating a noise-free checkpoint is Experiment B; a noise-trained one is C.
+    # analysis/ relies on this label. C evals get their own file via run_name.
+    experiment = "B" if cfg.noise == "none" else "C"
     logger = EvalLogger(
-        Path(run_dir) / "eval" / f"{cfg.env_id}_{cfg.model}_{cfg.seed}.csv",
+        Path(run_dir) / "eval" / f"{cfg.run_name}.csv",
         task=cfg.env_id,
         model=cfg.model,
-        experiment=cfg.experiment,
+        experiment=experiment,
         train_noise=cfg.noise,
         seed=cfg.seed,
         append=True,

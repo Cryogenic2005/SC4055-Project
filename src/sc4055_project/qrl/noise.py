@@ -16,7 +16,8 @@ Conventions (write these in the report):
   For a 2-qubit gate we apply the single-qubit channel to both wires.
 * A device's reported *average gate error* eps is NOT the same number as p.
   Use `gate_error_to_depol_p(eps, n_qubits)` when converting from calibration data
-  (eps = 2p/3 for a single qubit, so p = 1.5 eps).
+  (eps = 2p/3 for a single qubit, so p = 1.5 eps; for a 2-qubit gate with the
+  channel on both wires, p ~= 0.625 eps).
 * Shots are only ever combined with parameter-shift gradients, never backprop.
 """
 
@@ -84,13 +85,15 @@ class NoiseSpec:
 def gate_error_to_depol_p(eps: float, n_qubits: int = 1) -> float:
     """Average gate infidelity eps -> PennyLane DepolarizingChannel parameter p.
 
-    Fully depolarizing with probability lam gives r = lam (d-1)/d with d = 2**n.
-    PennyLane's channel has lam = 4p/3 on one qubit, so for n=1: eps = 2p/3.
-    For n=2 we keep applying the 1-qubit channel per wire and use the 1-qubit map
-    as an approximation, which we state in the report."""
+    We apply `DepolarizingChannel(p)` independently to each of the n wires a gate
+    touches. One such channel has process fidelity 1 - p, so n of them have
+    F_pro = (1 - p)**n, and the average gate infidelity is
+        eps = d/(d+1) * (1 - (1 - p)**n),   d = 2**n.
+    Inverting gives the exact p below. n=1: p = 1.5 eps. n=2: p ~= 0.625 eps.
+    Checked against Qiskit's average_gate_fidelity in sc4055_project.qiskit_crosscheck."""
     d = 2**n_qubits
-    lam = eps * d / (d - 1)
-    return 0.75 * lam if n_qubits == 1 else 0.75 * lam / 2
+    x = eps * (d + 1) / d
+    return float(-np.expm1(np.log1p(-x) / n_qubits))  # 1 - (1 - x)**(1/n), stable
 
 
 # --- presets anchored to the plan's hardware table -----------------------------

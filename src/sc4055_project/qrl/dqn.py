@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import pickle
 import time
 from collections import deque
@@ -147,6 +148,7 @@ def train_agent(
     ckpt_dir = run_dir / "checkpoints" / cfg.run_name
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     cfg.save(ckpt_dir / "config.json")
+    (ckpt_dir / "metadata.json").write_text(json.dumps(run_metadata(), indent=2))
 
     # Logger for training progress
     n_params = count_params(params)
@@ -347,6 +349,35 @@ def greedy_eval(q_fn, params, env, n_episodes: int, key, *, state_encode_fn) -> 
             done = term or trunc
 
     return ret / n_episodes
+
+
+def run_metadata() -> dict:
+    """Code and package versions, saved next to config.json so results trace to code."""
+    import platform
+    import subprocess
+
+    import gymnasium
+    import pennylane
+
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        commit = ""
+    return {
+        "git_commit": commit or None,
+        "python": platform.python_version(),
+        "pennylane": pennylane.__version__,
+        "jax": jax.__version__,
+        "optax": optax.__version__,
+        "gymnasium": gymnasium.__version__,
+        "numpy": np.__version__,
+    }
 
 
 def _should_print_train_info(cfg: Config, ep: int) -> bool:

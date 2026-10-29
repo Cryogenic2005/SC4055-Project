@@ -87,6 +87,21 @@ def test_gate_error_conversion():
     assert gate_error_to_depol_p(3e-4) == pytest.approx(4.5e-4)
 
 
+@pytest.mark.parametrize("n,eps", [(1, 3e-4), (1, 1e-2), (2, 3e-3), (2, 1e-2)])
+def test_gate_error_conversion_matches_channel_fidelity(n, eps):
+    """Per-wire DepolarizingChannel(p) on n wires must have average infidelity eps."""
+    from functools import reduce
+    from itertools import product
+
+    import numpy as np
+
+    p = gate_error_to_depol_p(eps, n)
+    kraus = qml.DepolarizingChannel(p, wires=0).kraus_matrices()
+    d = 2**n
+    f_pro = sum(abs(np.trace(reduce(np.kron, ks))) ** 2 for ks in product(kraus, repeat=n)) / d**2
+    assert 1 - (d * f_pro + 1) / (d + 1) == pytest.approx(eps, rel=1e-9)
+
+
 def test_presets_run_and_stress_is_worse_than_heron():
     z = {k: _z_after_prep(v) for k, v in PRESETS.items()}
     assert all(0 < v < 1 for v in z.values()), z
