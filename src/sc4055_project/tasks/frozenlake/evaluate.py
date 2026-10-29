@@ -12,8 +12,6 @@ from sc4055_project.qrl.envs import make_env
 from sc4055_project.qrl.logging_utils import EvalLogger
 from sc4055_project.qrl.noise import NOISE_MENU, parse_noise
 
-from .agent import state_to_bits
-
 
 def evaluate(
     cfg: Config,
@@ -22,6 +20,11 @@ def evaluate(
     n_episodes: int = 100,
     run_dir: str = "runs",
 ) -> dict:
+    def state_to_bits(s: int | np.ndarray) -> np.ndarray:
+        s = np.asarray(s, dtype=np.int64)
+        bits = np.stack([(s >> i) & 1 for i in range(cfg.n_qubits)], axis=-1)  # pyright: ignore[reportArgumentType]
+        return bits.astype(np.float32)
+
     logger = EvalLogger(
         Path(run_dir) / "eval" / f"{cfg.env_id}_{cfg.model}_{cfg.seed}.csv",
         task=cfg.env_id,

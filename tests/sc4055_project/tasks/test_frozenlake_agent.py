@@ -5,13 +5,13 @@ import pytest
 
 from sc4055_project.qrl.agent import count_params, init_params, make_q_fn
 from sc4055_project.qrl.noise import parse_noise
-from sc4055_project.tasks.frozenlake.agent import state_to_bits
+from sc4055_project.tasks.frozenlake.train import state_to_bits
 
 
 def test_bits():
-    assert state_to_bits(0).tolist() == [0, 0, 0, 0]
-    assert state_to_bits(15).tolist() == [1, 1, 1, 1]
-    assert state_to_bits(np.array([1, 2])).tolist() == [[1, 0, 0, 0], [0, 1, 0, 0]]
+    assert state_to_bits(0, 4).tolist() == [0, 0, 0, 0]
+    assert state_to_bits(15, 4).tolist() == [1, 1, 1, 1]
+    assert state_to_bits(np.array([1, 2]), 4).tolist() == [[1, 0, 0, 0], [0, 1, 0, 0]]
 
 
 @pytest.mark.parametrize(
@@ -28,7 +28,7 @@ def test_bits():
 def test_q_shape_and_jit(config, noise):
     params = init_params(config, jax.random.PRNGKey(0))
     q_fn = make_q_fn(config, parse_noise(noise))
-    bits = jnp.asarray(state_to_bits(np.arange(3)))
+    bits = jnp.asarray(state_to_bits(np.arange(3), 4))
     q = q_fn(params, bits, jax.random.PRNGKey(1))
     assert q.shape == (3, 4)
     assert jnp.all(jnp.isfinite(q))
@@ -38,14 +38,14 @@ def test_q_shape_and_jit(config, noise):
 def test_gradient_flows(config):
     params = init_params(config, jax.random.PRNGKey(0))
     q_fn = make_q_fn(config, parse_noise("none"))
-    bits = jnp.asarray(state_to_bits(np.arange(4)))
+    bits = jnp.asarray(state_to_bits(np.arange(4), 4))
     g = jax.grad(lambda p: q_fn(p, bits, jax.random.PRNGKey(0)).sum())(params)
     assert float(jnp.abs(g["theta"]).sum()) > 0
 
 
 def test_noisy_q_is_contracted(config):
     params = init_params(config, jax.random.PRNGKey(0))
-    bits = jnp.asarray(state_to_bits(np.arange(16)))
+    bits = jnp.asarray(state_to_bits(np.arange(16), 4))
     clean = make_q_fn(config, parse_noise("none"))(params, bits, jax.random.PRNGKey(0))
     noisy = make_q_fn(config, parse_noise("depolarizing=0.1"))(
         params, bits, jax.random.PRNGKey(0)
