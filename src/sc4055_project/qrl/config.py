@@ -144,7 +144,7 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
     """Per-task defaults chosen so that a 1-seed run finishes in minutes.
     These are starting points for the M1 hyperparameter sweep, not final values."""
     per_task: dict[str, dict[str, Any]] = {
-        # 5 layers (64 params): 3 layers did not learn in 500 episodes in our tests; 5 layers reached
+        # 5 layers (68 params: 60 angles + 4 input scales + 4 output weights): 3 layers did not learn in 500 episodes in our tests; 5 layers reached
         # 100% greedy success on is_slippery=False with shaping + eps *= 0.99 per episode.
         # Verified 22 Oct: with these settings seeds reach ~0.95 train mean / 1.00 greedy on the
         # deterministic map in ~500 episodes (2 min). gamma 0.9 and no re-uploading follow Chen et al.
