@@ -38,7 +38,7 @@ import numpy as np
 from sc4055_project.qrl.agent import make_q_fn
 from sc4055_project.qrl.config import default_config_for
 from sc4055_project.qrl.noise import parse_noise
-from sc4055_project.tasks.frozenlake.agent import state_to_bits
+from sc4055_project.tasks.frozenlake.train import state_to_bits
 
 N_STATES = 16
 
@@ -100,7 +100,7 @@ def probe(
     """(solved fraction, optimal-action agreement) at one evaluation noise level."""
     spec = parse_noise("none" if level == 0 else f"depolarizing={level:g}")
     q_fn = make_q_fn(cfg, spec, seed=0)
-    bits = state_to_bits(np.arange(N_STATES))
+    bits = state_to_bits(np.arange(N_STATES), 4)
     q = np.asarray(q_fn(params, jnp.asarray(bits), jax.random.PRNGKey(0)))
 
     solved = float(np.mean([solved_from(q, transitions, s) for s in states]))
