@@ -1,0 +1,9 @@
+{
+  "checkpoint": "runs/checkpoints/FrozenLake-v1_vqc_0/best.pkl",
+  "conversion_pass": true,
+  "aer_max_abs_diff": 1.9284220414972353e-07,
+  "readout_sampled_z": 0.97016,
+  "importer_max_abs_diff": 1.922628722894615e-12,
+  "importer_readout_warnings": 1,
+  "all_pass": true
+}

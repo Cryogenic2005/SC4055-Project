@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import json
 import pickle
+import platform
+import subprocess
 import time
 from collections import deque
 from pathlib import Path
@@ -16,6 +19,32 @@ from sc4055_project.qrl.logging_utils import TrainLogger
 from sc4055_project.qrl.noise import parse_noise
 
 from .agent import count_params, init_params, make_q_fn, state_to_bits
+
+
+def run_metadata() -> dict:
+    """Code and package versions, saved next to config.json so results trace to code."""
+    import gymnasium
+    import pennylane
+
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=Path(__file__).resolve().parent,
+            capture_output=True,
+            text=True,
+            timeout=10,
+        ).stdout.strip()
+    except (OSError, subprocess.SubprocessError):
+        commit = ""
+    return {
+        "git_commit": commit or None,
+        "python": platform.python_version(),
+        "pennylane": pennylane.__version__,
+        "jax": jax.__version__,
+        "optax": optax.__version__,
+        "gymnasium": gymnasium.__version__,
+        "numpy": np.__version__,
+    }
 
 
 def shape_reward(r: float, terminated: bool) -> float:
@@ -124,6 +153,7 @@ def train(cfg: Config, quick: bool = False) -> dict:
     ckpt_dir = run_dir / "checkpoints" / cfg.run_name
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     cfg.save(ckpt_dir / "config.json")
+    (ckpt_dir / "run_meta.json").write_text(json.dumps(run_metadata(), indent=2))
     n_params = count_params(params)
     logger = TrainLogger(
         run_dir / "train" / f"{cfg.run_name}.csv",

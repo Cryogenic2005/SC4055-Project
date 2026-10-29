@@ -1,0 +1,42 @@
+{
+  "env_id": "FrozenLake-v1",
+  "model": "vqc",
+  "seed": 1,
+  "experiment": "C",
+  "n_qubits": 4,
+  "n_layers": 5,
+  "encoding": "basis",
+  "readout": "z",
+  "data_reuploading": false,
+  "trainable_input_scaling": true,
+  "noise": "depolarizing=0.01",
+  "n_episodes": 600,
+  "max_steps": null,
+  "gamma": 0.9,
+  "batch_size": 32,
+  "buffer_size": 10000,
+  "learning_starts": 32,
+  "train_every": 1,
+  "target_update_every": 50,
+  "epsilon_start": 1.0,
+  "epsilon_end": 0.01,
+  "epsilon_decay_episodes": 300,
+  "epsilon_decay_rate": 0.99,
+  "reward_shaping": true,
+  "lr_circuit": 0.01,
+  "lr_input": 0.001,
+  "lr_output": 0.1,
+  "lr_mlp": 0.001,
+  "mlp_large_hidden": [
+    64,
+    64
+  ],
+  "run_dir": "runs",
+  "checkpoint_every": 25,
+  "eval_episodes": 20,
+  "log_every": 10,
+  "tag": "",
+  "env_kwargs": {
+    "is_slippery": false
+  }
+}

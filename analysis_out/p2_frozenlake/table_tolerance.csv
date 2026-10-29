@@ -1,0 +1,4 @@
+task,qubits,noise_type,tolerance,note,noise_free_norm
+FrozenLake-v1,4,coherent,0.06168887286721166,,1.4379562043795622
+FrozenLake-v1,4,depolarizing,0.0012545847378579974,,1.4379562043795622
+FrozenLake-v1,4,readout,0.05,above max tested,1.4379562043795622
