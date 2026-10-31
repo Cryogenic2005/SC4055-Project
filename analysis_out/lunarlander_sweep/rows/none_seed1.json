@@ -1,0 +1,15 @@
+{
+  "env": "LunarLander-v3",
+  "seed": 1,
+  "train_noise": "none",
+  "train_scale": 0.0,
+  "train_seconds": 344.0,
+  "final_train_return": -527.4408221531221,
+  "returns": {
+    "none": -430.4576205941871,
+    "depolarizing=0.0025": -404.76819424277903,
+    "depolarizing=0.005": -396.88395688840114,
+    "depolarizing=0.01": -496.4308359095626,
+    "depolarizing=0.02": -463.84675725317595
+  }
+}
