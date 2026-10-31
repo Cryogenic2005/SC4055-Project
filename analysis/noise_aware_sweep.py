@@ -39,6 +39,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import json
 import pickle
 import time
 from importlib import import_module
@@ -91,10 +92,30 @@ def make_cfg(env_id: str, seed: int, noise: str, base: str, args) -> Config:
     return cfg
 
 
-def run_arm(env_id: str, seed: int, noise: str, base: str, args, out: Path) -> dict:
+def row_path(out: Path, noise: str, seed: int) -> Path:
+    """One JSON per (arm, seed). Written the moment an arm finishes, so a sweep that
+    dies after six hours keeps everything it already paid for and can be resumed."""
+    return out / "rows" / f"{noise.replace('=', '')}_seed{seed}.json"
+
+
+def save_row(row: dict, out: Path) -> None:
+    path = row_path(out, row["train_noise"], row["seed"])
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(row, indent=2))
+
+
+def load_rows(out: Path) -> list[dict]:
+    return [json.loads(p.read_text()) for p in sorted((out / "rows").glob("*.json"))]
+
+
+def run_arm(env_id: str, seed: int, noise: str, base: str, args, out: Path) -> dict | None:
     """Train one arm, then evaluate its final checkpoint under every condition."""
     task = import_module(TASK_PACKAGES[env_id])
     cfg = make_cfg(env_id, seed, noise, base, args)
+
+    if args.resume and row_path(out, noise, seed).exists():
+        print(f"  seed {seed}  train_noise={noise:20s} (already done, skipped)", flush=True)
+        return None
 
     t0 = time.perf_counter()
     result = task.train(cfg)
@@ -175,6 +196,8 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--train-every", type=int, default=1)
     p.add_argument("--conditions", nargs="+", default=SWEEP_CONDITIONS)
     p.add_argument("--out", type=Path, default=Path("analysis_out/noise_aware"))
+    p.add_argument("--resume", action="store_true",
+                   help="skip arms whose rows/*.json already exists (use after a crash)")
     return p.parse_args()
 
 
@@ -187,11 +210,14 @@ def main() -> None:
     print(f"seeds={args.seeds}  episodes={args.episodes}  "
           f"eval={args.eval_episodes} eps x {len(args.conditions)} conditions\n")
 
-    rows = []
     for noise in arms:
         for seed in args.seeds:
-            rows.append(run_arm(args.env, seed, noise, args.base, args, args.out))
+            row = run_arm(args.env, seed, noise, args.base, args, args.out)
+            if row is not None:
+                save_row(row, args.out)
 
+    # Rebuilt from rows/ so a resumed sweep still produces the full table.
+    rows = load_rows(args.out)
     write_summary(rows, args.out / "summary.csv")
     print_table(rows, args.conditions, args.base)
     print(f"\nwrote {args.out / 'summary.csv'}")
