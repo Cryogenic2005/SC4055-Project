@@ -52,23 +52,50 @@ recovered. Decay is now stretched to 800 episodes with a 0.05 floor.
 
 The action distribution is the clearest sign the policy became state-dependent.
 
-## What is still broken
+## The late-training collapse, and the fix
 
-Every architecture collapses late. The VQC's greedy score falls from −110 (episode 750)
-to −425 by the end; `mlp_small` goes −54 → −145 over the same stretch. Inspecting the
-weights shows the same divergence as before at a slower rate: `|w_out|` drifts 6 → 15
-and mean Q climbs to +4.2 while the targets stay O(1). Lowering `lr_output` to 1e-3 does
-not fix it (greedy −249 at episode 750, worse than 1e-2) — the readout then cannot adapt
-inside 1000 episodes.
+After those three fixes the agent learned, but every arm still fell apart in the last
+quarter: the VQC's greedy score went −110 (episode 750) → −425 by the end, and
+`mlp_small` went −54 → −145. The weights showed the same divergence as before, only
+slower — `|w_out|` drifting 6 → 15 and mean Q climbing to +4.2 against O(1) targets.
 
-So 1e-2 is the local optimum, and what remains is ordinary DQN instability, shared by
-every model:
+That is **maximisation bias**: `target = r + γ·max_a Q_target(s', a)` takes a maximum
+over an estimate, so it is biased upward, and the bias feeds back through its own
+bootstrap. The standard fix is Double DQN — the online network picks the next action,
+the target network only scores it:
 
-* report `best.pkl` (chosen on a greedy validation eval, which `train.py` already does)
-  rather than `final.pkl`, and state the selection rule in the report;
-* hard target update every step (`target_update_every=1`, as the CartPole config does);
-* gradient clipping;
-* a larger replay buffer.
+```python
+next_action = argmax(q_online(s'))          # selection: unbiased w.r.t. the target
+q_next      = q_target(s', next_action)     # evaluation
+```
+
+Added as `cfg.double_dqn` (on for LunarLander) plus global-norm gradient clipping
+(`cfg.grad_clip = 1.0`). One seed, 1000 episodes, everything else unchanged:
+
+| | before | after |
+|---|---|---|
+| greedy evaluation, 30 episodes, best checkpoint | −110 | **−14.6** |
+| best checkpoint | episode 750 | **episode 999** |
+| max \|w_out\| | 15 (drifting) | 2.7 (stable) |
+| Q mean ± std | +4.2 ± 3.9 | −0.10 ± 0.48 |
+
+−14.6 is a working policy (a crash scores −100 or worse; 0 is "landed safely, missed the
+pad"; +200 is a good landing). And the best checkpoint is now the **last** one, so
+training no longer needs to be stopped early to get a usable agent.
+
+Training is still non-monotone — episode 750 was a genuine dip (−276 on the same
+30-episode re-evaluation) — so keep selecting `best.pkl` on a validation eval, and use
+enough evaluation episodes to make that selection meaningful (10 episodes had a standard
+error of ~30 points here; 30 is a reasonable floor).
+
+## What is still open
+
+* **One seed.** The −14.6 figure is a single 1000-episode run. Run seeds 1–4 before
+  quoting it; LunarLander's per-seed spread is large.
+* **`eval_episodes`.** Checkpoint selection currently uses `cfg.eval_episodes`; for
+  LunarLander that should be ≥ 20, or the "best" checkpoint is chosen on noise.
+* **Capacity.** 104 parameters is small for this task. The 8-qubit fallback in the plan
+  (one qubit per feature) is the natural next step if the seeded mean is not good enough.
 
 ## Reproducing
 

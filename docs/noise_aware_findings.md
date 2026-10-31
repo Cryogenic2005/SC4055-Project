@@ -104,6 +104,32 @@ QuantumNAT's post-measurement normalization is designed to remove.
    there and conclude "no effect" when the effect is at 1×.
 4. **LunarLander is not the place to do this.** See below.
 
+## Warning: Experiment B's score at p = 0.01 does not reproduce
+
+P2's table (`docs/p2_frozenlake_results.md`) reports a clean-trained agent scoring
+**0.00** at `depolarizing=0.01`, 5 seeds, which is what makes the Experiment C gain look
+like +1.00. On the current code that number is not stable:
+
+| what was measured | result at p = 0.01 |
+|---|---|
+| P2's committed seed-0 checkpoint, re-evaluated now | 0.00 (matches their table) |
+| fresh training, seeds 0–4, same config | 1.00, 0.00, 0.00, 0.00, 1.00 → **0.40** |
+| fresh training, seeds 0–2, P2's checkpoint-selection settings | 1.00, 0.00, 0.00 |
+
+Re-evaluating P2's own checkpoint reproduces 0.00, so the evaluation code is fine — the
+difference is in *which policy training lands on*. Same seed, same nominal config, and
+the current code produces an agent that survives 0.01 where the committed one does not.
+
+The explanation is that the cliff sits exactly on the test point: at p = 0.01 the
+per-qubit signal is already shrunk to about a quarter, and whether the greedy action
+survives depends on margins that shift with any change to the RNG stream. Over ten seeds
+(their five, my five) B is about 0.2, not 0.0.
+
+**So quote B at p = 0.01 as a distribution, not a point**, and prefer a comparison point
+where B is unambiguously 0 for every seed, or enough seeds that the mean is stable. The
+Experiment C result is the robust half of the comparison: training under 0.01 gave 1.00 at
+0.01 for 5/5 seeds in P2's runs and for the one seed re-run here.
+
 ## Limits
 
 * **3 seeds, one task, 600 episodes.** The binary success numbers move in thirds; only
