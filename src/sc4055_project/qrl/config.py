@@ -72,6 +72,10 @@ class Config:
     lr_input: float = 1e-3
     lr_output: float = 0.1
     lr_mlp: float = 1e-3
+    double_dqn: bool = False        # target = r + gamma * Q_target(s', argmax_a Q_online(s', a)).
+                                    # Removes the upward bias of max_a Q_target, which is what walked
+                                    # LunarLander's Q-values off their reward scale late in training.
+    grad_clip: float = 0.0          # global-norm clip per parameter group; 0 disables
 
     # --- MLP sizes ---
     mlp_large_hidden: tuple[int, ...] = (64, 64)
@@ -162,9 +166,13 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
         # |w_out| ~3 and lets the VQC actually land (verified 25 Oct).
         # epsilon decay stretched to 800 episodes: at 400 the policy went greedy
         # before the Q-function had settled and never recovered.
+        # double_dqn: plain max_a Q_target is biased upward, and that bias is what
+        # collapsed every arm in the last quarter of training (Q mean +4.2 against O(1)
+        # targets). See analysis/lunarlander/README.md.
         "LunarLander-v3": dict(n_layers=4, n_episodes=1000, batch_size=64, learning_starts=2000,
                                epsilon_decay_episodes=800, epsilon_end=0.05,
                                buffer_size=50_000, lr_output=1e-2,
+                               double_dqn=True, grad_clip=1.0,
                                reward_scale=0.01),  # terminal +-100 vs bounded <Z>; logged return stays raw
     }
     d = dict(per_task.get(env_id, {}))

@@ -53,13 +53,18 @@ def _optimizer_labels(params) -> dict:
 
 def make_optimizer(cfg: Config, params):
     # Separate learning rates per parameter group (TFQ / Skolik recipe).
+    def adam(lr: float):
+        if cfg.grad_clip > 0:
+            return optax.chain(optax.clip_by_global_norm(cfg.grad_clip), optax.adam(lr))
+        return optax.adam(lr)
+
     return optax.multi_transform(
         {
-            "circuit": optax.adam(cfg.lr_circuit),
-            "input": optax.adam(cfg.lr_input),
-            "output": optax.adam(cfg.lr_output),
-            "encoder": optax.adam(cfg.lr_mlp),
-            "mlp": optax.adam(cfg.lr_mlp),
+            "circuit": adam(cfg.lr_circuit),
+            "input": adam(cfg.lr_input),
+            "output": adam(cfg.lr_output),
+            "encoder": adam(cfg.lr_mlp),
+            "mlp": adam(cfg.lr_mlp),
         },
         _optimizer_labels(params),
     )
@@ -133,10 +138,20 @@ def train(cfg: Config, quick: bool = False) -> dict:
     opt_state = opt.init(params)
 
     def loss_fn(p, tgt, s, a, r, s2, d, k):
-        k1, k2 = jax.random.split(k)
+        k1, k2, k3 = jax.random.split(k, 3)
         q = q_fn(p, s, k1)
         q_sa = jnp.take_along_axis(q, a[:, None], axis=1)[:, 0]
-        q_next = jax.lax.stop_gradient(q_fn(tgt, s2, k2)).max(axis=1)
+        if cfg.double_dqn:
+            # Double DQN: the online net *picks* the next action, the target net scores
+            # it. Plain max_a Q_target is biased upward, and that bias is what walked
+            # the Q-values away from the O(1) reward scale and collapsed the policy in
+            # the last quarter of every run (see analysis/lunarlander/README.md).
+            next_action = jnp.argmax(q_fn(p, s2, k2), axis=1)
+            q_next = jnp.take_along_axis(
+                jax.lax.stop_gradient(q_fn(tgt, s2, k3)), next_action[:, None], axis=1
+            )[:, 0]
+        else:
+            q_next = jax.lax.stop_gradient(q_fn(tgt, s2, k2)).max(axis=1)
         y = r + cfg.gamma * (1.0 - d) * q_next
         return optax.huber_loss(q_sa, y).mean()
 
