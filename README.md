@@ -145,6 +145,8 @@ As of now, the following commands are available:
 ```bash
 baseline [task]       # Run baseline on the specified task (or all of them)
 # Equivalent to `python src/sc4055_project/frozenlake.py (...)`
+cartpole train        # Train CartPole-v1 (VQC by default; supports --model)
+cartpole evaluate     # Evaluate a CartPole checkpoint under the noise menu
 frozenlake train      # Train the model on FrozenLake-v1 task
 frozenlake evaluate   # Evaluate the model on FrozenLake-v1 task
 lunarlander train     # Train the hybrid VQC (or --model encoder_only|mlp_small|mlp_large) on LunarLander-v3

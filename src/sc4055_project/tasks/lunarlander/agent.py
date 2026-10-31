@@ -36,14 +36,11 @@ import itertools
 import jax
 import jax.numpy as jnp
 import numpy as np
-import pennylane as qml
 
+from sc4055_project.qrl.agent import make_q_fn as make_vqc_q_fn
 from sc4055_project.qrl.config import Config
 from sc4055_project.qrl.noise import (
     NoiseSpec,
-    apply_noise,
-    apply_readout_noise,
-    make_device,
 )
 
 N_QUBITS = 4
@@ -65,7 +62,9 @@ def _mlp_init(key, sizes: tuple[int, ...]) -> dict:
     for i, (n_in, n_out) in enumerate(itertools.pairwise(sizes), start=1):
         key, k = jax.random.split(key)
         # He-style scaling for the ReLU layers; the final layer starts small.
-        std = jnp.sqrt(2.0 / n_in) if i < len(sizes) - 1 else 0.01 * jnp.sqrt(1.0 / n_in)
+        std = (
+            jnp.sqrt(2.0 / n_in) if i < len(sizes) - 1 else 0.01 * jnp.sqrt(1.0 / n_in)
+        )
         params[f"w{i}"] = std * jax.random.normal(k, (n_in, n_out))
         params[f"b{i}"] = jnp.zeros((n_out,))
     return params
@@ -111,54 +110,6 @@ def count_params(params) -> int:
 
 
 # --------------------------------------------------------------------------- #
-# circuit
-# --------------------------------------------------------------------------- #
-def build_circuit(
-    n_layers: int,
-    spec: NoiseSpec,
-    reupload: bool = True,
-    seed: int | None = None,
-    diff_method: str | None = None,
-    n_qubits: int = N_QUBITS,
-):
-    """Return a QNode f(x, theta, lam) -> list of n_qubits <Z> expectation values.
-
-    ``x`` is the encoder output, already in (-1, 1); it multiplies pi so the encoded
-    rotation stays inside a full turn.
-    """
-    dev = make_device(n_qubits, spec, seed=seed)
-    if diff_method is None:
-        # Real hardware cannot backprop: with shots use parameter-shift, else backprop.
-        diff_method = "parameter-shift" if dev.shots else "backprop"
-
-    def encode(x, lam_l):
-        for i in range(n_qubits):
-            qml.RX(jnp.pi * x[i] * lam_l[i], wires=i)
-            apply_noise(spec, [i])
-
-    @qml.qnode(dev, interface="jax", diff_method=diff_method)
-    def circuit(x, theta, lam):
-        encode(x, lam[0])
-        for layer in range(n_layers):
-            if reupload and layer > 0:
-                encode(x, lam[layer])
-            for i in range(n_qubits):
-                qml.RX(theta[layer, i, 0], wires=i)
-                apply_noise(spec, [i])
-                qml.RY(theta[layer, i, 1], wires=i)
-                apply_noise(spec, [i])
-                qml.RZ(theta[layer, i, 2], wires=i)
-                apply_noise(spec, [i])
-            for i in range(n_qubits):
-                qml.CZ(wires=[i, (i + 1) % n_qubits])
-                apply_noise(spec, [i, (i + 1) % n_qubits])
-        apply_readout_noise(spec, range(n_qubits))
-        return [qml.expval(qml.PauliZ(i)) for i in range(n_qubits)]
-
-    return circuit
-
-
-# --------------------------------------------------------------------------- #
 # Q-functions
 # --------------------------------------------------------------------------- #
 def _encode_features(params, obs):
@@ -189,9 +140,7 @@ def make_q_fn(
     models. Finite shots disable jit/vmap because the device samples internally.
     """
     if cfg.model == "vqc":
-        circuit = build_circuit(
-            cfg.n_layers, spec, cfg.data_reuploading, seed=seed, n_qubits=N_QUBITS
-        )
+        circuit = make_vqc_q_fn(cfg, spec, seed=seed, jit=jit)
         sigma = spec.coherent_sigma
 
         def single(obs, params, key):
@@ -209,9 +158,9 @@ def make_q_fn(
 
         def batched_shots(params, obs, key):
             keys = jax.random.split(key, obs.shape[0])
-            return jnp.stack(
-                [single(obs[i], params, keys[i]) for i in range(obs.shape[0])]
-            )
+            return jnp.stack([
+                single(obs[i], params, keys[i]) for i in range(obs.shape[0])
+            ])
 
         if spec.shots:
             return batched_shots

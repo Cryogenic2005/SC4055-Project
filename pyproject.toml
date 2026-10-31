@@ -46,6 +46,7 @@ jupyter = ["ipykernel>=7.4.0"]
 
 [project.scripts]
 baseline = "sc4055_project.baseline:main"
+cartpole = "sc4055_project.cartpole:main"
 frozenlake = "sc4055_project.frozenlake:main"
 lunarlander = "sc4055_project.lunarlander:main"
 qiskit-crosscheck = "sc4055_project.qiskit_crosscheck:main"
