@@ -203,7 +203,7 @@ def train_agent(
         while not done:
             # Epsilon-greedy action selection
             if rng.random() < eps:
-                a = int(rng.integers(4))
+                a = int(rng.integers(cfg.n_actions))
             else:
                 key, k = jax.random.split(key)
                 a = int(jnp.argmax(q_fn(params, s[None], k)[0]))
