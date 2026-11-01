@@ -20,8 +20,15 @@ Experiment B. Cost: ~2.4 h per noise-trained seed, ~7–16 min per clean seed.
 | clean | 2 | −267 | −129 | −129 | −126 | −126 |
 | **trained 0.005** | 0 | −241 | −300 | **−189** | −456 | −512 |
 | **trained 0.005** | 1 | −348 | −638 | **−693** | −138 | −136 |
+| **trained 0.005** | 2 | −164 | −238 | **−322** | −386 | −531 |
+| **mean, clean arm** | | **−253** | −361 | **−358** | −384 | −385 |
+| **mean, trained arm** | | −251 | −392 | **−401** | −326 | −393 |
 
-Column means at the matched noise: clean **−358**, trained-under-noise **−441**. No gain.
+At the matched noise the trained arm is **−401 against the clean arm's −358**: slightly
+*worse*, and both are far below random play (−150). The only place the trained arm wins is
+0.01 (−326 vs −384), which is not the level it was trained at — that is seed noise, not an
+effect.
+
 
 ## What actually happened
 

@@ -1,0 +1,101 @@
+
+===== A clean baseline x3 =====
+env=LunarLander-v3  deployment=depolarizing=0.005  arms=['none']
+seeds=[0, 1, 2]  episodes=1000  eval=20 eps x 5 conditions
+
+[LunarLander-v3_vqc_0_T0] 104 params, noise=none, reward_scale=0.01
+ep     0  return  -184.8  avg100  -184.8  eps 1.00      1.0s
+ep   250  return   -71.7  avg100  -142.2  eps 0.70    100.1s
+ep   500  return  -318.1  avg100  -231.0  eps 0.41    218.8s
+ep   750  return   -60.0  avg100  -175.7  eps 0.11    419.6s
+ep   999  return  -549.1  avg100   -97.6  eps 0.05    949.0s
+{'final_score': -97.55147993307563, 'solved_at': None, 'final_greedy': nan, 'best_greedy': nan, 'best_ep': 999, 'wall_s': 949.037465100002, 'n_params': 104, 'checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_0_T0\\final.pkl', 'best_checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_0_T0\\best.pkl'}
+none                   mean return -61.0
+depolarizing=0.0025    mean return -548.3
+depolarizing=0.005     mean return -548.7
+depolarizing=0.01      mean return -528.5
+depolarizing=0.02      mean return -563.6
+  seed 0  train_noise=none                 (950.8s)  return@deploy=-548.742
+[LunarLander-v3_vqc_1_T0] 104 params, noise=none, reward_scale=0.01
+ep     0  return  -335.6  avg100  -335.6  eps 1.00      0.0s
+ep   250  return  -390.3  avg100  -210.3  eps 0.70    105.1s
+ep   500  return   -66.2  avg100  -212.8  eps 0.41    182.7s
+ep   750  return  -145.4  avg100  -120.5  eps 0.11    263.8s
+ep   999  return  -711.6  avg100  -527.4  eps 0.05    343.8s
+{'final_score': -527.4408221531221, 'solved_at': None, 'final_greedy': nan, 'best_greedy': nan, 'best_ep': 999, 'wall_s': 343.78030580002815, 'n_params': 104, 'checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_1_T0\\final.pkl', 'best_checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_1_T0\\best.pkl'}
+none                   mean return -430.5
+depolarizing=0.0025    mean return -404.8
+depolarizing=0.005     mean return -396.9
+depolarizing=0.01      mean return -496.4
+depolarizing=0.02      mean return -463.8
+  seed 1  train_noise=none                 (344.0s)  return@deploy=-396.884
+[LunarLander-v3_vqc_2_T0] 104 params, noise=none, reward_scale=0.01
+ep     0  return   -30.7  avg100   -30.7  eps 1.00      0.5s
+ep   250  return  -136.7  avg100  -194.3  eps 0.70     98.0s
+ep   500  return  -253.4  avg100  -270.1  eps 0.41    208.8s
+ep   750  return  -532.9  avg100  -307.7  eps 0.11    335.3s
+ep   999  return  -248.5  avg100  -341.1  eps 0.05    441.9s
+{'final_score': -341.10299953799404, 'solved_at': None, 'final_greedy': nan, 'best_greedy': nan, 'best_ep': 999, 'wall_s': 441.8773053000332, 'n_params': 104, 'checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_2_T0\\final.pkl', 'best_checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_2_T0\\best.pkl'}
+none                   mean return -267.4
+depolarizing=0.0025    mean return -128.7
+depolarizing=0.005     mean return -128.6
+depolarizing=0.01      mean return -126.2
+depolarizing=0.02      mean return -126.1
+  seed 2  train_noise=none                 (442.4s)  return@deploy=-128.613
+
+train noise                   none   dep=0.0025    dep=0.005     dep=0.01     dep=0.02
+none                      -252.927     -360.586     -358.080     -383.702     -384.538
+
+wrote analysis_out\lunarlander_sweep\summary.csv
+===== A clean baseline x3 done in 0.49 h =====
+
+===== B matched noise 0.005 x3 =====
+env=LunarLander-v3  deployment=depolarizing=0.005  arms=['depolarizing=0.005']
+seeds=[0, 1, 2]  episodes=1000  eval=20 eps x 5 conditions
+
+[LunarLander-v3_vqc_0_depolarizing0.005_T1] 104 params, noise=depolarizing=0.005, reward_scale=0.01
+ep     0  return  -184.8  avg100  -184.8  eps 1.00      0.0s
+ep   250  return  -105.5  avg100  -184.3  eps 0.70   1093.8s
+ep   500  return  -130.3  avg100  -181.7  eps 0.41   2398.2s
+ep   750  return  -198.0  avg100  -110.4  eps 0.11   4151.4s
+ep   999  return   -61.5  avg100  -125.1  eps 0.05   8351.4s
+{'final_score': -125.10381547819615, 'solved_at': None, 'final_greedy': nan, 'best_greedy': nan, 'best_ep': 999, 'wall_s': 8352.127963900042, 'n_params': 104, 'checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_0_depolarizing0.005_T1\\final.pkl', 'best_checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_0_depolarizing0.005_T1\\best.pkl'}
+none                   mean return -240.6
+depolarizing=0.0025    mean return -299.9
+depolarizing=0.005     mean return -188.7
+depolarizing=0.01      mean return -456.2
+depolarizing=0.02      mean return -511.9
+  seed 0  train_noise=depolarizing=0.005   (8353.1s)  return@deploy=-188.717
+[LunarLander-v3_vqc_1_depolarizing0.005_T1] 104 params, noise=depolarizing=0.005, reward_scale=0.01
+ep     0  return  -335.6  avg100  -335.6  eps 1.00      0.0s
+ep   250  return  -306.8  avg100  -221.1  eps 0.70   1082.0s
+ep   500  return  -398.7  avg100  -286.0  eps 0.41   2300.4s
+ep   750  return  -318.2  avg100  -358.4  eps 0.11   3735.5s
+ep   999  return  -553.7  avg100  -536.1  eps 0.05   4911.2s
+{'final_score': -536.0943844318342, 'solved_at': None, 'final_greedy': nan, 'best_greedy': nan, 'best_ep': 999, 'wall_s': 4911.253627000027, 'n_params': 104, 'checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_1_depolarizing0.005_T1\\final.pkl', 'best_checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_1_depolarizing0.005_T1\\best.pkl'}
+none                   mean return -347.7
+depolarizing=0.0025    mean return -637.9
+depolarizing=0.005     mean return -692.9
+depolarizing=0.01      mean return -137.5
+depolarizing=0.02      mean return -136.4
+  seed 1  train_noise=depolarizing=0.005   (4911.4s)  return@deploy=-692.858
+[LunarLander-v3_vqc_2_depolarizing0.005_T1] 104 params, noise=depolarizing=0.005, reward_scale=0.01
+ep     0  return   -30.7  avg100   -30.7  eps 1.00      0.0s
+ep   250  return   -66.9  avg100  -132.3  eps 0.70   1124.5s
+ep   500  return  -200.4  avg100  -183.2  eps 0.41   2905.7s
+ep   750  return  -194.6  avg100  -284.9  eps 0.11   6224.0s
+ep   999  return  -213.3  avg100  -210.2  eps 0.05   8097.3s
+{'final_score': -210.20257475241593, 'solved_at': None, 'final_greedy': nan, 'best_greedy': nan, 'best_ep': 999, 'wall_s': 8097.350974700006, 'n_params': 104, 'checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_2_depolarizing0.005_T1\\final.pkl', 'best_checkpoint': 'analysis_out\\lunarlander_sweep\\runs\\checkpoints\\LunarLander-v3_vqc_2_depolarizing0.005_T1\\best.pkl'}
+none                   mean return -163.7
+depolarizing=0.0025    mean return -238.3
+depolarizing=0.005     mean return -321.9
+depolarizing=0.01      mean return -385.5
+depolarizing=0.02      mean return -531.1
+  seed 2  train_noise=depolarizing=0.005   (8097.5s)  return@deploy=-321.874
+
+train noise                   none   dep=0.0025    dep=0.005     dep=0.01     dep=0.02
+none                      -252.927     -360.586     -358.080     -383.702     -384.538
+depolarizing=0.005        -250.662     -392.025     -401.150     -326.407     -393.132
+
+wrote analysis_out\lunarlander_sweep\summary.csv
+===== B matched noise 0.005 x3 done in 5.94 h =====

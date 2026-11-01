@@ -1,0 +1,10 @@
+
+===== A clean baseline x3 seeds =====
+env=LunarLander-v3  deployment=depolarizing=0.005  arms=['none']
+seeds=[0, 1, 2]  episodes=1000  eval=20 eps x 4 conditions
+
+[LunarLander-v3_vqc_0_T0] 104 params, noise=none, reward_scale=0.01
+ep     0  return  -184.8  avg100  -184.8  eps 1.00      0.0s
+ep   250  return   -71.7  avg100  -142.2  eps 0.70     97.4s
+ep   500  return  -318.1  avg100  -231.0  eps 0.41    220.3s
+ep   750  return   -60.0  avg100  -175.7  eps 0.11    427.1s
