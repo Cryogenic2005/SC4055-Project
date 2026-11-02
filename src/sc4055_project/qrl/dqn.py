@@ -27,11 +27,14 @@ def _default_state_encode_fn(s):
 def make_optimizer(cfg: Config, params=None):
     """Default optimizer matches the shared VQC and MLP models."""
     labels = {"theta": "circuit", "lam": "input", "w_out": "output"}
+    if isinstance(params, dict):
+        labels = {k: labels.get(k, "mlp") for k in params}
     return optax.multi_transform(
         {
             "circuit": optax.adam(cfg.lr_circuit),
             "input": optax.adam(cfg.lr_input),
             "output": optax.adam(cfg.lr_output),
+            "mlp": optax.adam(cfg.lr_mlp),
         },
         labels,
     )

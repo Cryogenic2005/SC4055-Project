@@ -1,4 +1,15 @@
-"""Train and evaluate the CartPole-v1 VQC agent with DQN (owner: P1)."""
+"""Train and evaluate the CartPole-v1 VQC agent with DQN (owner: P1).
+
+Examples:
+```
+cartpole train --seed 0
+cartpole train --seed 0 --noise depolarizing=0.01
+cartpole train --seed 0 --model mlp_small
+cartpole train --seed 0 --episodes 50 --quick
+cartpole evaluate --checkpoint runs/checkpoints/CartPole-v1_vqc_0/best.pkl
+cartpole evaluate --checkpoint ... --conditions none depolarizing=0.01 preset=heron2026
+```
+"""
 
 from __future__ import annotations
 
@@ -11,21 +22,11 @@ from sc4055_project.qrl.noise import NOISE_MENU
 from sc4055_project.tasks.cartpole import evaluate, train
 
 TRAIN_DOC = """\
-Examples
-    cartpole train --seed 0
-    cartpole train --seed 0 --noise depolarizing=0.01
-    cartpole train --seed 0 --model mlp_small
-    cartpole train --seed 0 --episodes 50 --quick
-
 Writes runs/train/CartPole-v1_<model>_<seed>[_<noise>].csv and
 runs/checkpoints/<run_name>/{config.json, metadata.json, ep*.pkl, best.pkl, final.pkl}.\
 """
 
 EVAL_DOC = """\
-Examples
-    cartpole evaluate --checkpoint runs/checkpoints/CartPole-v1_vqc_0/best.pkl
-    cartpole evaluate --checkpoint ... --conditions none depolarizing=0.01 preset=heron2026
-
 Appends greedy evaluation episodes to runs/eval/<run_name>.csv.
 Experiment label is B for noise-free training checkpoints, C otherwise.\
 """

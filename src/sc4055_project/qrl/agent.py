@@ -78,6 +78,11 @@ def init_params(cfg: Config, key, **kwargs) -> dict[str, Any]:
     n_actions = kwargs.get("n_actions", cfg.n_actions)
     data_reuploading = kwargs.get("data_reuploading", cfg.data_reuploading)
 
+    if cfg.model == "mlp_small":
+        return _mlp_init(key, (cfg.obs_dim, 8, n_actions))
+    if cfg.model == "mlp_large":
+        return _mlp_init(key, (cfg.obs_dim, *cfg.mlp_large_hidden, n_actions))
+
     # Should be set through __post_init__ in Config
     assert n_qubits is not None, "cfg.n_qubits must be set for init_params"
 
@@ -105,6 +110,14 @@ def make_q_fn(cfg: Config, spec: NoiseSpec, *, jit: bool = True, **kwargs):
     Returns:
         Function q_fn(params, x, key) -> (batch, n_actions).
     """
+    if cfg.model in ("mlp_small", "mlp_large"):
+
+        def batched_mlp(params, x, key):
+            del key
+            return _forward_mlp(params, x)
+
+        return jax.jit(batched_mlp) if jit else batched_mlp
+
     circuit = _build_circuit(
         n_layers=kwargs.get("n_layers", cfg.n_layers),
         n_qubits=kwargs.get("n_qubits", cfg.n_qubits),
@@ -207,3 +220,25 @@ def _perturb_parameters(params, key, sigma: float):
     lam = params["lam"] + lam_noise
 
     return theta, lam
+
+
+def _mlp_init(key, sizes: tuple[int, ...]) -> dict[str, jnp.ndarray]:
+    params: dict[str, jnp.ndarray] = {}
+    for i, (n_in, n_out) in enumerate(zip(sizes[:-1], sizes[1:], strict=True), start=1):
+        key, k = jax.random.split(key)
+        std = (
+            jnp.sqrt(2.0 / n_in) if i < len(sizes) - 1 else 0.01 * jnp.sqrt(1.0 / n_in)
+        )
+        params[f"w{i}"] = std * jax.random.normal(k, (n_in, n_out))
+        params[f"b{i}"] = jnp.zeros((n_out,))
+    return params
+
+
+def _forward_mlp(params, x):
+    y = x
+    n_layers = sum(1 for k in params if k.startswith("w"))
+    for i in range(1, n_layers + 1):
+        y = y @ params[f"w{i}"] + params[f"b{i}"]
+        if i < n_layers:
+            y = jax.nn.relu(y)
+    return y
