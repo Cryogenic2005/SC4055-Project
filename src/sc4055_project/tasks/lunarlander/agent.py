@@ -36,8 +36,10 @@ import itertools
 import jax
 import jax.numpy as jnp
 import numpy as np
+import optax
 import pennylane as qml
 
+from sc4055_project.qrl.agent import TaskAdapter
 from sc4055_project.qrl.config import Config
 from sc4055_project.qrl.noise import (
     NoiseSpec,
@@ -65,7 +67,9 @@ def _mlp_init(key, sizes: tuple[int, ...]) -> dict:
     for i, (n_in, n_out) in enumerate(itertools.pairwise(sizes), start=1):
         key, k = jax.random.split(key)
         # He-style scaling for the ReLU layers; the final layer starts small.
-        std = jnp.sqrt(2.0 / n_in) if i < len(sizes) - 1 else 0.01 * jnp.sqrt(1.0 / n_in)
+        std = (
+            jnp.sqrt(2.0 / n_in) if i < len(sizes) - 1 else 0.01 * jnp.sqrt(1.0 / n_in)
+        )
         params[f"w{i}"] = std * jax.random.normal(k, (n_in, n_out))
         params[f"b{i}"] = jnp.zeros((n_out,))
     return params
@@ -203,35 +207,39 @@ def make_q_fn(
                 lam = lam + sigma * jax.random.normal(k2, lam.shape) / jnp.pi
             return params["w_out"] * jnp.stack(circuit(x, theta, lam))
 
-        def batched(params, obs, key):
+        def vqc_batched(params, obs, key):
             keys = jax.random.split(key, obs.shape[0])
             return jax.vmap(single, in_axes=(0, None, 0))(obs, params, keys)
 
-        def batched_shots(params, obs, key):
+        def vqc_batched_shots(params, obs, key):
             keys = jax.random.split(key, obs.shape[0])
-            return jnp.stack(
-                [single(obs[i], params, keys[i]) for i in range(obs.shape[0])]
-            )
+            return jnp.stack([
+                single(obs[i], params, keys[i]) for i in range(obs.shape[0])
+            ])
 
         if spec.shots:
-            return batched_shots
-        return jax.jit(batched) if jit else batched
+            return vqc_batched_shots
+        return jax.jit(vqc_batched) if jit else vqc_batched
 
     if cfg.model == "encoder_only":
 
-        def batched(params, obs, key):
+        def encoder_batched(params, obs, key):
             x = _encode_features(params, obs)
             return x @ params["W"] + params["b"]
 
     elif cfg.model in ("mlp_small", "mlp_large"):
 
-        def batched(params, obs, key):
+        def mlp_batched(params, obs, key):
             return _forward_mlp(params, obs)
 
     else:
         raise ValueError(f"unknown model {cfg.model!r}")
 
-    return jax.jit(batched) if jit else batched
+    return (
+        jax.jit(encoder_batched if cfg.model == "encoder_only" else mlp_batched)
+        if jit
+        else (encoder_batched if cfg.model == "encoder_only" else mlp_batched)
+    )
 
 
 # LunarLander observations arrive on wildly different scales (x,y in +-1.5 but the
@@ -250,3 +258,72 @@ def encode_obs(obs) -> np.ndarray:
     usable feature vector.
     """
     return np.asarray(obs, dtype=np.float32) / OBS_SCALE
+
+
+# parameter-name -> optimizer group
+_GROUP = {
+    "theta": "circuit",
+    "lam": "input",
+    "w_out": "output",
+    "enc_w": "encoder",
+    "enc_b": "encoder",
+    "W": "encoder",
+    "b": "encoder",
+}
+
+
+def _optimizer_labels(params) -> dict:
+    return {name: _GROUP.get(name, "mlp") for name in params}
+
+
+def make_optimizer(cfg: Config, params):
+    def adam(lr: float):
+        if cfg.grad_clip > 0:
+            return optax.chain(optax.clip_by_global_norm(cfg.grad_clip), optax.adam(lr))
+        return optax.adam(lr)
+
+    return optax.multi_transform(
+        {
+            "circuit": adam(cfg.lr_circuit),
+            "input": adam(cfg.lr_input),
+            "output": adam(cfg.lr_output),
+            "encoder": adam(cfg.lr_mlp),
+            "mlp": adam(cfg.lr_mlp),
+        },
+        _optimizer_labels(params),
+    )
+
+
+def build_update_fn(cfg: Config, q_fn, opt, *, jit: bool = True):
+    def loss_fn(p, tgt, s, a, r, s2, d, k):
+        k1, k2, k3 = jax.random.split(k, 3)
+        q = q_fn(p, s, k1)
+        q_sa = jnp.take_along_axis(q, a[:, None], axis=1)[:, 0]
+        if cfg.double_dqn:
+            next_action = jnp.argmax(q_fn(p, s2, k2), axis=1)
+            q_next = jnp.take_along_axis(
+                jax.lax.stop_gradient(q_fn(tgt, s2, k3)), next_action[:, None], axis=1
+            )[:, 0]
+        else:
+            q_next = jax.lax.stop_gradient(q_fn(tgt, s2, k2)).max(axis=1)
+        y = r + cfg.gamma * (1.0 - d) * q_next
+        return optax.huber_loss(q_sa, y).mean()
+
+    grad_fn = jax.value_and_grad(loss_fn)
+
+    def update(p, o, tgt, batch, k):
+        loss, g = grad_fn(p, tgt, *batch, k)
+        upd, o = opt.update(g, o, p)
+        return optax.apply_updates(p, upd), o, loss
+
+    return jax.jit(update) if jit else update
+
+
+TASK_ADAPTER = TaskAdapter(
+    init_params=init_params,
+    make_q_fn=make_q_fn,
+    make_optimizer=make_optimizer,
+    build_update_fn=build_update_fn,
+    count_params=count_params,
+    encode_obs=encode_obs,
+)

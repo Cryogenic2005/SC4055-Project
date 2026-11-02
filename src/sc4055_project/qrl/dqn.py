@@ -13,11 +13,59 @@ import jax.numpy as jnp
 import numpy as np
 import optax
 
-from .agent import count_params, init_params, make_q_fn
+from .agent import TaskAdapter
 from .config import Config
 from .envs import make_env
 from .logging_utils import TrainLogger
 from .noise import parse_noise
+
+
+def _default_state_encode_fn(s):
+    return s
+
+
+def make_optimizer(cfg: Config, params=None):
+    """Default optimizer matches the shared VQC and MLP models."""
+    labels = {"theta": "circuit", "lam": "input", "w_out": "output"}
+    return optax.multi_transform(
+        {
+            "circuit": optax.adam(cfg.lr_circuit),
+            "input": optax.adam(cfg.lr_input),
+            "output": optax.adam(cfg.lr_output),
+        },
+        labels,
+    )
+
+
+def get_update_fn(q_fn, opt, gamma, *, jit=True, double_dqn: bool = False):
+    def loss_fn(p, tgt, s, a, r, s2, d, k):
+        if double_dqn:
+            k1, k2, k3 = jax.random.split(k, 3)
+            q = q_fn(p, s, k1)
+            q_sa = jnp.take_along_axis(q, a[:, None], axis=1)[:, 0]
+            next_action = jnp.argmax(q_fn(p, s2, k2), axis=1)
+            q_next = jnp.take_along_axis(
+                jax.lax.stop_gradient(q_fn(tgt, s2, k3)), next_action[:, None], axis=1
+            )[:, 0]
+        else:
+            k1, k2 = jax.random.split(k)
+            q = q_fn(p, s, k1)
+            q_sa = jnp.take_along_axis(q, a[:, None], axis=1)[:, 0]
+            q_next = jax.lax.stop_gradient(q_fn(tgt, s2, k2)).max(axis=1)
+        y = r + gamma * (1.0 - d) * q_next
+        return optax.huber_loss(q_sa, y).mean()
+
+    grad_fn = jax.value_and_grad(loss_fn)
+
+    def update(p, o, tgt, batch, k):
+        loss, g = grad_fn(p, tgt, *batch, k)
+        upd, o = opt.update(g, o, p)
+        return optax.apply_updates(p, upd), o, loss
+
+    if jit:
+        return jax.jit(update)
+
+    return update
 
 
 class ReplayBuffer:
@@ -61,97 +109,65 @@ class ReplayBuffer:
         return self.s[idx], self.a[idx], self.r[idx], self.s2[idx], self.d[idx]
 
 
-def make_optimizer(cfg: Config):
-    # Separate learning rates per parameter group (TFQ / Skolik recipe).
-    labels = {"theta": "circuit", "lam": "input", "w_out": "output"}
-    return optax.multi_transform(
-        {
-            "circuit": optax.adam(cfg.lr_circuit),
-            "input": optax.adam(cfg.lr_input),
-            "output": optax.adam(cfg.lr_output),
-        },
-        labels,
-    )
-
-
-def get_update_fn(q_fn, opt, gamma, *, jit=True):
-    def loss_fn(p, tgt, s, a, r, s2, d, k):
-        k1, k2 = jax.random.split(k)
-        q = q_fn(p, s, k1)
-        q_sa = jnp.take_along_axis(q, a[:, None], axis=1)[:, 0]
-        q_next = jax.lax.stop_gradient(q_fn(tgt, s2, k2)).max(axis=1)
-        y = r + gamma * (1.0 - d) * q_next
-        return optax.huber_loss(q_sa, y).mean()
-
-    grad_fn = jax.value_and_grad(loss_fn)
-
-    def update(p, o, tgt, batch, k):
-        loss, g = grad_fn(p, tgt, *batch, k)
-        upd, o = opt.update(g, o, p)
-        return optax.apply_updates(p, upd), o, loss
-
-    if jit:
-        return jax.jit(update)
-
-    return update
-
-
 def train_agent(
     cfg: Config,
     *,
-    state_shape: tuple[int, ...],
-    state_encode_fn: Callable[[Any], np.ndarray],
+    state_shape: tuple[int, ...] | None = None,
+    state_encode_fn: Callable[[Any], np.ndarray] | None = None,
     reward_augment_fn: Callable[[float, bool], float] | None = None,
     env=None,
     eval_env=None,
     quick: bool = False,
+    adapter: TaskAdapter | None = None,
 ) -> dict:
-    """Train a DQN agent on the given environment and return training statistics.
+    """Train a DQN agent using a task adapter when custom model behaviour is required.
 
-    Allows for custom state encoding and reward shaping functions to be provided.
-
-    Args:
-        cfg: Configuration object containing hyperparameters and settings.
-        state_shape: Shape of the encoded state space.
-        state_encode_fn: Function to encode states before feeding into the model.
-        reward_augment_fn: Optional function to augment rewards for training.
-        env: Optional environment instance for training.
-            If None, a new environment is created.
-        eval_env: Optional environment instance for evaluation.
-            If None, a new environment is created.
-        quick: If True, runs a quick training session for testing purposes.
-
-    Returns:
-        Training metadata
+    A task can provide an adapter with its own `init_params`, `make_q_fn`, optimizer setup,
+    and observation encoding; otherwise the generic VQC/MLP defaults in `qrl.agent` are
+    used. The training loop itself stays shared.
     """
+    adapter = adapter or TaskAdapter()
+    state_encode_fn = state_encode_fn or adapter.encode_obs or _default_state_encode_fn
+    reward_augment_fn = reward_augment_fn or adapter.reward_augment_fn
 
-    # Setup random seeds and RNGs.
+    def encode_state(obs):
+        return np.asarray(state_encode_fn(obs), dtype=np.float32)
+
     key = jax.random.PRNGKey(cfg.seed)
     rng = np.random.default_rng(cfg.seed)
-
     spec = parse_noise(cfg.noise)
 
-    # Initialize model, optimizer, and target network.
     key, k_init = jax.random.split(key)
-    params = init_params(cfg, k_init)
+    params = adapter.init_params(cfg, k_init)
     target = params
 
-    q_fn = make_q_fn(cfg, spec)
-    opt = make_optimizer(cfg)
+    q_fn = adapter.make_q_fn(cfg, spec, seed=cfg.seed)
+    opt = (
+        adapter.make_optimizer(cfg, params)
+        if adapter.make_optimizer is not None
+        else make_optimizer(cfg, params)
+    )
     opt_state = opt.init(params)
 
-    # Get the update function for training
-    update_fn = get_update_fn(q_fn, opt, cfg.gamma, jit=not bool(spec.shots))
+    update_fn = (
+        adapter.build_update_fn(cfg, q_fn, opt, jit=not bool(spec.shots))
+        if adapter.build_update_fn is not None
+        else get_update_fn(
+            q_fn,
+            opt,
+            cfg.gamma,
+            jit=not bool(spec.shots),
+            double_dqn=bool(cfg.double_dqn),
+        )
+    )
 
-    # Setup directories for training info
     run_dir = Path(cfg.run_dir)
     ckpt_dir = run_dir / "checkpoints" / cfg.run_name
     ckpt_dir.mkdir(parents=True, exist_ok=True)
     cfg.save(ckpt_dir / "config.json")
     (ckpt_dir / "metadata.json").write_text(json.dumps(run_metadata(), indent=2))
 
-    # Logger for training progress
-    n_params = count_params(params)
+    n_params = adapter.count_params(params)
     logger = TrainLogger(
         run_dir / "train" / f"{cfg.run_name}.csv",
         task=cfg.env_id,
@@ -162,7 +178,6 @@ def train_agent(
         n_params=n_params,
     )
 
-    # Setup environments for training and evaluation
     created_env = env is None
     if env is None:
         env = make_env(
@@ -177,6 +192,13 @@ def train_agent(
             max_steps=cfg.max_steps,
             **cfg.env_kwargs,
         )
+
+    if state_shape is None:
+        if adapter.state_shape is not None:
+            state_shape = adapter.state_shape
+        else:
+            sample_obs, _ = env.reset()
+            state_shape = tuple(encode_state(sample_obs).shape)
 
     # Buffer for experience replay
     buf = ReplayBuffer(cfg.buffer_size, state_shape, rng)
@@ -194,11 +216,11 @@ def train_agent(
     )
 
     n_episodes = cfg.n_episodes if not quick else 5
+    g = float("nan")
     for ep in range(n_episodes):
+        eps = update_epsilon(cfg, ep)
         s, _ = env.reset()
-        if state_encode_fn:
-            s = state_encode_fn(s)
-
+        s = encode_state(s)
         done, ret = False, 0.0
         while not done:
             # Epsilon-greedy action selection
@@ -210,19 +232,17 @@ def train_agent(
 
             # Step the environment
             s2, r, term, trunc, _ = env.step(a)
-            r = float(r)  # Just for typing
-            if state_encode_fn:
-                s2 = state_encode_fn(s2)
+            s2 = encode_state(s2)
 
-            # Augmnent reward for training only
-            r_train = r
-            if cfg.reward_shaping and reward_augment_fn:
-                r_train = reward_augment_fn(r, term)
+            r_train = float(r)
+            if reward_augment_fn is not None:
+                r_train = reward_augment_fn(float(r), bool(term))
+            if cfg.reward_scale != 1.0:
+                r_train *= cfg.reward_scale
 
-            # Update
             buf.add(s, a, r_train, s2, float(term))
             s = s2
-            ret += r
+            ret += float(r)
             done = term or trunc
             steps += 1
 
@@ -258,12 +278,10 @@ def train_agent(
                 sep="  ",
             )
 
-        eps = update_epsilon(cfg, ep)
-
         if _should_eval(cfg, ep, n_episodes):
             # Save epoch checkpoint
             save_checkpoint(params, ckpt_dir / f"ep{ep}.pkl")
-            if ep == cfg.n_episodes - 1:
+            if ep == n_episodes - 1:
                 save_checkpoint(params, ckpt_dir / "final.pkl")
 
             key, k = jax.random.split(key)
@@ -273,7 +291,7 @@ def train_agent(
                 eval_env,
                 cfg.eval_episodes,
                 k,
-                state_encode_fn=state_encode_fn,
+                state_encode_fn=encode_state,
             )
             if g >= best_greedy:
                 # >= so a later, equally good checkpoint wins (more training)
@@ -342,7 +360,8 @@ def greedy_eval(q_fn, params, env, n_episodes: int, key, *, state_encode_fn) -> 
         done = False
         while not done:
             key, k = jax.random.split(key)
-            a = int(jnp.argmax(q_fn(params, state_encode_fn(s)[None], k)[0]))
+            s_enc = state_encode_fn(s)
+            a = int(jnp.argmax(q_fn(params, s_enc[None], k)[0]))
             s, r, term, trunc, _ = env.step(a)
 
             ret += r

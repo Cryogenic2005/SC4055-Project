@@ -18,6 +18,8 @@ so the P2 code, the P3 harness and the P4 baselines all plug in unchanged.
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from typing import Any
 
 import jax
@@ -26,6 +28,38 @@ import pennylane as qml
 
 from .config import Config
 from .noise import NoiseSpec, apply_noise, apply_readout_noise, make_device
+
+
+def _identity(x):
+    return x
+
+
+@dataclass(frozen=True)
+class TaskAdapter:
+    """Hook points for task-specific models and training behaviour.
+
+    The common Q-learning loop only needs a few pieces from a task: how to create the
+    parameter pytree, how to build the Q-function, and (optionally) how to build a
+    custom optimizer / update step. Tasks can override these without copying the full
+    engineering code from `qrl.dqn`.
+    """
+
+    init_params: Callable[[Config, jax.Array], Any] = field(default=None)  # type: ignore[assignment]
+    make_q_fn: Callable[..., Any] = field(default=None)  # type: ignore[assignment]
+    make_optimizer: Callable[..., Any] | None = None
+    build_update_fn: Callable[..., Any] | None = None
+    count_params: Callable[[Any], int] = field(default=None)  # type: ignore[assignment]
+    encode_obs: Callable[[Any], Any] = field(default=_identity)
+    reward_augment_fn: Callable[[float, bool], float] | None = None
+    state_shape: tuple[int, ...] | None = None
+
+    def __post_init__(self):
+        if self.init_params is None:
+            object.__setattr__(self, "init_params", init_params)
+        if self.make_q_fn is None:
+            object.__setattr__(self, "make_q_fn", make_q_fn)
+        if self.count_params is None:
+            object.__setattr__(self, "count_params", count_params)
 
 
 def init_params(cfg: Config, key, **kwargs) -> dict[str, Any]:

@@ -1,4 +1,13 @@
-"""Train and evaluate the FrozenLake VQC agent with DQN (owner: P2)."""
+"""Train and evaluate the FrozenLake VQC agent with DQN (owner: P2).
+
+frozenlake train --seed 0                       # Experiment A
+frozenlake train --seed 0 --noise depolarizing=0.01   # Experiment C
+frozenlake train --seed 0 --noise shots=100     # parameter-shift, no backprop
+frozenlake train --seed 0 --slippery            # stochastic map (threshold 0.70)
+frozenlake train --episodes 50 --quick          # smoke run
+frozenlake evaluate --checkpoint runs/checkpoints/FrozenLake-v1_vqc_0/best.pkl
+frozenlake evaluate --checkpoint ... --conditions none depolarizing=0.01 preset=heron2026
+"""
 
 import argparse
 import pickle
@@ -9,23 +18,12 @@ from sc4055_project.qrl.noise import NOISE_MENU
 from sc4055_project.tasks.frozenlake import evaluate, train
 
 TRAIN_DOC = """\
-Examples
-    python tasks/frozenlake/train.py --seed 0                       # Experiment A
-    python tasks/frozenlake/train.py --seed 0 --noise depolarizing=0.01   # Experiment C
-    python tasks/frozenlake/train.py --seed 0 --noise shots=100     # parameter-shift, no backprop
-    python tasks/frozenlake/train.py --seed 0 --slippery            # stochastic map (threshold 0.70)
-    python tasks/frozenlake/train.py --episodes 50 --quick          # smoke run
-
 Writes runs/train/FrozenLake-v1_vqc_<seed>[_<noise>].csv (analysis-spec columns),
 runs/checkpoints/<run_name>/{config.json, run_meta.json, ep*.pkl, best.pkl, final.pkl}.
 best.pkl has the highest periodic greedy score; evaluate that one.\
 """
 
 EVAL_DOC = """\
-Examples
-    python tasks/frozenlake/evaluate.py --checkpoint runs/checkpoints/FrozenLake-v1_vqc_0/best.pkl
-    python tasks/frozenlake/evaluate.py --checkpoint ... --conditions none depolarizing=0.01 preset=heron2026
-
 Appends 100 greedy episodes per condition to runs/eval/<run_name>.csv, labelled
 Experiment B when the checkpoint was trained noise-free and C otherwise.
 Until P3's shared harness (qrl/evaluate.py) lands, this file is the reference.\
