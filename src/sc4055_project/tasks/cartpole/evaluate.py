@@ -12,7 +12,7 @@ from sc4055_project.qrl.envs import make_env
 from sc4055_project.qrl.logging_utils import EvalLogger
 from sc4055_project.qrl.noise import NOISE_MENU, parse_noise
 
-from .train import encode_obs
+from .agent import encode_obs
 
 
 def evaluate(
