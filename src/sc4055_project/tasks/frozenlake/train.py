@@ -4,6 +4,7 @@ from functools import partial
 
 import numpy as np
 
+from sc4055_project.qrl.agent import TaskAdapter
 from sc4055_project.qrl.config import Config
 from sc4055_project.qrl.dqn import train_agent
 
@@ -23,14 +24,19 @@ def shape_reward(r: float, terminated: bool) -> float:
     return -0.01
 
 
-def train(cfg: Config, quick: bool = False) -> dict:
+def make_task_adapter(cfg: Config) -> TaskAdapter:
     state_encode_fn = partial(state_to_bits, n_qubits=cfg.n_qubits)  # pyright: ignore[reportArgumentType]
+    return TaskAdapter(
+        encode_obs=state_encode_fn,
+        reward_augment_fn=shape_reward,
+    )
 
+
+def train(cfg: Config, quick: bool = False) -> dict:
+    adapter = make_task_adapter(cfg)
     out = train_agent(
         cfg,
-        state_shape=(4,),
-        state_encode_fn=state_encode_fn,
-        reward_augment_fn=shape_reward,
+        adapter=adapter,
         quick=quick,
     )
 

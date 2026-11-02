@@ -1,0 +1,3 @@
+2026-10-30 23:42:26  shutdown watcher armed: will power off after 6 arms (deadline 22 h)
+2026-10-31 05:26:27  6/6 arms done; waiting 3 min for the summary
+2026-10-31 05:29:27  issuing shutdown /s /t 180 — cancel with 'shutdown /a'
