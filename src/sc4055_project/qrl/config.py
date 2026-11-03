@@ -33,15 +33,15 @@ MODELS = ("vqc", "mlp_small", "mlp_large", "encoder_only")
 class Config:
     # --- what ---
     env_id: str = "CartPole-v1"
-    model: str = "vqc"              # vqc | mlp_small | mlp_large | encoder_only
+    model: str = "vqc"  # vqc | mlp_small | mlp_large | encoder_only
     seed: int = 0
-    experiment: str = "A"           # A = noise-free training, C = noise-aware training
+    experiment: str = "A"  # A = noise-free training, C = noise-aware training
 
     # --- circuit ---
-    n_qubits: int | None = None     # default from TASKS
+    n_qubits: int | None = None  # default from TASKS
     n_layers: int = 5
-    encoding: str | None = None     # basis | arctan | linear (default from TASKS)
-    readout: str = "z"              # z: <Z_i> per action; zz: pairs <Z_i Z_j>
+    encoding: str | None = None  # basis | arctan | linear (default from TASKS)
+    readout: str = "z"  # z: <Z_i> per action; zz: pairs <Z_i Z_j>
     data_reuploading: bool = True
     trainable_input_scaling: bool = True
 
@@ -52,45 +52,60 @@ class Config:
 
     # --- DQN ---
     n_episodes: int = 1000
-    max_steps: int | None = None    # None -> env default
+    max_steps: int | None = None  # None -> env default
     gamma: float = 0.99
     batch_size: int = 32
     buffer_size: int = 10_000
     learning_starts: int = 500
     train_every: int = 1
-    target_update_every: int = 50   # gradient steps
+    target_update_every: int = 50  # gradient steps
     epsilon_start: float = 1.0
     epsilon_end: float = 0.01
     epsilon_decay_episodes: int = 300
-    epsilon_decay_rate: float | None = None   # if set: eps = max(end, start * rate**episode) (multiplicative)
-    reward_shaping: bool = False    # FrozenLake only: train on +1 goal / -0.2 hole / -0.01 step (Chen et al.);
-                                    # the LOGGED return is always the raw env return
-    reward_scale: float = 1.0       # multiplier for the TD target only; the LOGGED return is always raw.
-                                    # LunarLander: terminal rewards are +-100 but the readout is a bounded
-                                    # <Z>, so its train.py defaults to 0.01. Other tasks keep 1.0.
+
+    # if set: eps = max(end, start * rate**episode) (multiplicative)
+    epsilon_decay_rate: float | None = None
+
+    # FrozenLake only: train on +1 goal / -0.2 hole / -0.01 step (Chen et al.);
+    #   the LOGGED return is always the raw env return
+    reward_shaping: bool = False
+
+    # multiplier for the TD target only; the LOGGED return is always raw.
+    reward_scale: float = 1.0
+
+    # LunarLander: terminal rewards are +-100 but the readout is a bounded
+    # <Z>, so its train.py defaults to 0.01. Other tasks keep 1.0.
     lr_circuit: float = 1e-3
     lr_input: float = 1e-3
     lr_output: float = 0.1
     lr_mlp: float = 1e-3
-    double_dqn: bool = False        # target = r + gamma * Q_target(s', argmax_a Q_online(s', a)).
-                                    # Removes the upward bias of max_a Q_target, which is what walked
-                                    # LunarLander's Q-values off their reward scale late in training.
-    grad_clip: float = 0.0          # global-norm clip per parameter group; 0 disables
+
+    # target = r + gamma * Q_target(s', argmax_a Q_online(s', a)).
+    #   Removes the upward bias of max_a Q_target, which is what walked
+    #   LunarLander's Q-values off their reward scale late in training.
+    double_dqn: bool = False
+
+    grad_clip: float = 0.0  # global-norm clip per parameter group; 0 disables
 
     # --- MLP sizes ---
     mlp_large_hidden: tuple[int, ...] = (64, 64)
 
     # --- bookkeeping ---
     run_dir: str = "runs"
-    checkpoint_every: int = 25      # episodes; also runs a short greedy eval and updates best.pkl
-    eval_episodes: int = 20         # greedy episodes per periodic eval (0 disables)
-    log_every: int = 10             # print to stdout
-    tag: str = ""                   # optional suffix for file names
+
+    # episodes; also runs a short greedy eval and updates best.pkl
+    checkpoint_every: int = 25
+
+    eval_episodes: int = 20  # greedy episodes per periodic eval (0 disables)
+    log_every: int = 10  # print to stdout
+    tag: str = ""  # optional suffix for file names
     env_kwargs: dict = field(default_factory=dict)  # e.g. {"is_slippery": False}
 
     def __post_init__(self) -> None:
         if self.env_id not in TASKS:
-            raise ValueError(f"Unknown env_id {self.env_id!r}; choose from {list(TASKS)}")
+            raise ValueError(
+                f"Unknown env_id {self.env_id!r}; choose from {list(TASKS)}"
+            )
         if self.model not in MODELS:
             raise ValueError(f"Unknown model {self.model!r}; choose from {MODELS}")
         t = TASKS[self.env_id]
@@ -152,14 +167,40 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
         # 100% greedy success on is_slippery=False with shaping + eps *= 0.99 per episode.
         # Verified 22 Oct: with these settings seeds reach ~0.95 train mean / 1.00 greedy on the
         # deterministic map in ~500 episodes (2 min). gamma 0.9 and no re-uploading follow Chen et al.
-        "FrozenLake-v1": dict(n_layers=5, n_episodes=600, batch_size=32, learning_starts=32, gamma=0.9,
-                              data_reuploading=False, target_update_every=50,
-                              epsilon_decay_rate=0.99, reward_shaping=True, lr_circuit=1e-2, lr_output=0.1,
-                              env_kwargs={"is_slippery": False}),  # Chen et al. map; --slippery for the stochastic one
-        "CartPole-v1": dict(n_layers=5, n_episodes=1500, batch_size=16, learning_starts=1000,
-                            epsilon_decay_episodes=500, target_update_every=1, lr_circuit=1e-3),
-        "Acrobot-v1": dict(n_layers=3, n_episodes=600, batch_size=32, learning_starts=1000,
-                           epsilon_decay_episodes=200),
+        "FrozenLake-v1": dict(
+            n_layers=5,
+            n_episodes=600,
+            batch_size=32,
+            learning_starts=32,
+            gamma=0.9,
+            data_reuploading=False,
+            target_update_every=50,
+            epsilon_decay_rate=0.99,
+            reward_shaping=True,
+            lr_circuit=1e-2,
+            lr_output=0.1,
+            env_kwargs={"is_slippery": False},
+        ),  # Chen et al. map; --slippery for the stochastic one
+        "CartPole-v1": dict(
+            n_layers=5,
+            n_episodes=1500,
+            batch_size=32,
+            learning_starts=1000,
+            epsilon_decay_episodes=500,
+            target_update_every=100,
+            lr_circuit=1e-3,
+            lr_output=2e-2,
+            epsilon_end=0.05,
+            grad_clip=1.0,
+            double_dqn=True,
+        ),
+        "Acrobot-v1": dict(
+            n_layers=3,
+            n_episodes=600,
+            batch_size=32,
+            learning_starts=1000,
+            epsilon_decay_episodes=200,
+        ),
         # lr_output was 0.1, which under Adam moves each readout weight by ~0.1 per
         # step: |w_out| ran to ~50 while the TD targets are O(1), so the Q-function
         # diverged by a factor of ~30 and the agent stayed at random. 1e-2 keeps
@@ -169,11 +210,19 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
         # double_dqn: plain max_a Q_target is biased upward, and that bias is what
         # collapsed every arm in the last quarter of training (Q mean +4.2 against O(1)
         # targets). See analysis/lunarlander/README.md.
-        "LunarLander-v3": dict(n_layers=4, n_episodes=1000, batch_size=64, learning_starts=2000,
-                               epsilon_decay_episodes=800, epsilon_end=0.05,
-                               buffer_size=50_000, lr_output=1e-2,
-                               double_dqn=True, grad_clip=1.0,
-                               reward_scale=0.01),  # terminal +-100 vs bounded <Z>; logged return stays raw
+        "LunarLander-v3": dict(
+            n_layers=4,
+            n_episodes=1000,
+            batch_size=64,
+            learning_starts=2000,
+            epsilon_decay_episodes=800,
+            epsilon_end=0.05,
+            buffer_size=50_000,
+            lr_output=1e-2,
+            double_dqn=True,
+            grad_clip=1.0,
+            reward_scale=0.01,
+        ),  # terminal +-100 vs bounded <Z>; logged return stays raw
     }
     d = dict(per_task.get(env_id, {}))
     d.update(kw)
