@@ -5,15 +5,20 @@ import numpy as np
 
 from sc4055_project.qrl.config import default_config_for
 from sc4055_project.qrl.logging_utils import TRAIN_COLUMNS
-from sc4055_project.tasks.cartpole.train import encode_obs, train
+from sc4055_project.tasks.cartpole.agent import CARTPOLE_OBS_SCALE, encode_obs
+from sc4055_project.tasks.cartpole.train import train
 
 
 def test_encode_obs_arctan_shape_dtype():
     x = np.asarray([0.0, 1.0, -1.0, 10.0], dtype=np.float32)
+
     y = encode_obs(x)
+
+    expected = np.arctan(np.clip(x / CARTPOLE_OBS_SCALE, -1.0, 1.0)).astype(np.float32)
+
     assert y.shape == (4,)
     assert y.dtype == np.float32
-    assert np.allclose(y, np.arctan(x), atol=1e-7)
+    assert np.allclose(y, expected, atol=1e-7)
 
 
 def test_tiny_training_run_writes_spec_columns(tmp_path: Path):
