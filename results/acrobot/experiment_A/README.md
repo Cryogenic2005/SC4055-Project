@@ -84,7 +84,13 @@ python analysis/acrobot/summarize.py /content/drive/MyDrive/SC4055_Acrobot_Recov
 ## Validation recorded
 
 The user-run Colab v2 notebook reported **9 tests passed in 83.22 seconds**
-before these experiments. Local syntax and Ruff checks pass. Full local JAX
-tests cannot execute on the Windows host because application control blocks
-`jaxlib/_jax.pyd`; this is not reported as a successful full-suite run.
+before these experiments. Local syntax and Ruff checks pass. The final local
+verification loaded JAX successfully: **53 tests passed and 1 was skipped** in
+the full run; eight other tests encountered Windows temporary-directory
+permission errors. Re-running exactly those eight with TEMP/TMP and pytest's
+base temporary directory inside the workspace gave **8 passed**. Thus the
+combined verification covers **61 passing tests and 1 skipped test**, across
+two runs, rather than claiming a single clean full-suite invocation. The
+earlier JAX application-control failure did not recur in this verification.
+The branch also includes the latest main's CartPole test-import fix.
 No Actions training workflow is included or triggered by this branch push.
