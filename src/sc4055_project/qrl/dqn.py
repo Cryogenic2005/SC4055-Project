@@ -300,8 +300,6 @@ def train_agent(
                 # >= so a later, equally good checkpoint wins (more training)
                 best_greedy, best_ep = g, ep
                 save_checkpoint(params, ckpt_dir / "best.pkl")
-                with open(ckpt_dir / "best.pkl", "wb") as fh:
-                    pickle.dump(jax.device_get(params), fh)
 
             print(
                 f"   [eval ep {ep}] greedy mean over {cfg.eval_episodes}",

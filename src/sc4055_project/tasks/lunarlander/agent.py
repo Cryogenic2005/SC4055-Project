@@ -158,19 +158,16 @@ def make_q_fn(
             x = _encode_features(params, obs)
             return x @ params["W"] + params["b"]
 
-    elif cfg.model in ("mlp_small", "mlp_large"):
+        return jax.jit(encoder_batched) if jit else encoder_batched
+
+    if cfg.model in ("mlp_small", "mlp_large"):
 
         def mlp_batched(params, obs, key):
             return _forward_mlp(params, obs)
 
-    else:
-        raise ValueError(f"unknown model {cfg.model!r}")
+        return jax.jit(mlp_batched) if jit else mlp_batched
 
-    return (
-        jax.jit(encoder_batched if cfg.model == "encoder_only" else mlp_batched)
-        if jit
-        else (encoder_batched if cfg.model == "encoder_only" else mlp_batched)
-    )
+    raise ValueError(f"unknown model {cfg.model!r}")
 
 
 # LunarLander observations arrive on wildly different scales (x,y in +-1.5 but the
