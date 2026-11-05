@@ -1,0 +1,4 @@
+model,train_noise,experiment,eval_noise_type,eval_noise_level,count,mean,std
+mlp_large,none,B,none,0,5,-147.88000000000002,74.47598606262291
+mlp_small,none,B,none,0,5,-226.046,113.75610216599371
+vqc,none,B,none,0,5,-345.47999999999996,104.64428197469749
