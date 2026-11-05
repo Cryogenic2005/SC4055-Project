@@ -1,0 +1,16 @@
+model,seed,train_noise,experiment,eval_noise_type,eval_noise_level,episodes,mean_return
+mlp_large,0,none,B,none,0,100,-101.49
+mlp_large,1,none,B,none,0,100,-132.45
+mlp_large,2,none,B,none,0,100,-113.12
+mlp_large,3,none,B,none,0,100,-112.73
+mlp_large,4,none,B,none,0,100,-279.61
+mlp_small,0,none,B,none,0,100,-270.31
+mlp_small,1,none,B,none,0,100,-233.7
+mlp_small,2,none,B,none,0,100,-389.14
+mlp_small,3,none,B,none,0,100,-122.36
+mlp_small,4,none,B,none,0,100,-114.72
+vqc,0,none,B,none,0,100,-218.78
+vqc,1,none,B,none,0,100,-348.96
+vqc,2,none,B,none,0,100,-491.44
+vqc,3,none,B,none,0,100,-389.67
+vqc,4,none,B,none,0,100,-278.55
