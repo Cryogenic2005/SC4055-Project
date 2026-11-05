@@ -21,7 +21,7 @@ sit on one plot and support one argument instead of being four separate demos.
 |---|---|---|---|---|---|---|
 | **P1** | Le Nguyen Bao Huy | CartPole | `qrl/agent.py`, `qrl/dqn.py` (QAgent + DQN loop) | Method section, video intro | [docs/members/P1.md](docs/members/P1.md) | Not started |
 | **P2** | Poobanchuen Panjapong | FrozenLake | `qrl/noise.py`, presets, tests | Noise-model section, **report editor** | [docs/members/P2.md](docs/members/P2.md) | Exp A done (5/5 seeds) |
-| **P3** | Wang Jianning | Acrobot | `qrl/evaluate.py`, `analysis/` | Results figures, **video editor** | [docs/members/P3.md](docs/members/P3.md) | Exp A done (3 models × 5 seeds); Exp B in progress; Exp C pending |
+| **P3** | Wang Jianning | Acrobot | `qrl/evaluate.py`, `analysis/` | Results figures, **video editor** | [docs/members/P3.md](docs/members/P3.md) | Exp A done (3 models × 5 seeds); Exp B done (5 seeds × 17 conditions); Exp C in progress |
 | **P4** | Yang Mingchen | LunarLander hybrid | MLP baselines, `qrl/envs.py` | Related work, limitations, conclusion | [docs/members/P4.md](docs/members/P4.md) | Not started |
 
 Group 1 members: Le Nguyen Bao Huy, Yang Mingchen, Poobanchuen Panjapong, Wang Jianning.
