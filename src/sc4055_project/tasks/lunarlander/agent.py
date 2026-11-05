@@ -142,31 +142,15 @@ def make_q_fn(
     models. Finite shots disable jit/vmap because the device samples internally.
     """
     if cfg.model == "vqc":
-        circuit = make_vqc_q_fn(cfg, spec, seed=seed, jit=jit)
-        sigma = spec.coherent_sigma
-
-        def single(obs, params, key):
-            x = _encode_features(params, obs)
-            theta, lam = params["theta"], params["lam"]
-            if sigma > 0:
-                k1, k2 = jax.random.split(key)
-                theta = theta + sigma * jax.random.normal(k1, theta.shape)
-                lam = lam + sigma * jax.random.normal(k2, lam.shape) / jnp.pi
-            return params["w_out"] * jnp.stack(circuit(x, theta, lam))
+        vqc_q_fn = make_vqc_q_fn(cfg, spec, seed=seed, jit=jit)
 
         def vqc_batched(params, obs, key):
-            keys = jax.random.split(key, obs.shape[0])
-            return jax.vmap(single, in_axes=(0, None, 0))(obs, params, keys)
+            x = _encode_features(params, obs)
 
-        def vqc_batched_shots(params, obs, key):
-            keys = jax.random.split(key, obs.shape[0])
-            return jnp.stack([
-                single(obs[i], params, keys[i]) for i in range(obs.shape[0])
-            ])
+            # Delegate circuit evaluation and noise handling.
+            return vqc_q_fn(params, x, key)
 
-        if spec.shots:
-            return vqc_batched_shots
-        return jax.jit(vqc_batched) if jit else vqc_batched
+        return vqc_batched
 
     if cfg.model == "encoder_only":
 
@@ -174,19 +158,16 @@ def make_q_fn(
             x = _encode_features(params, obs)
             return x @ params["W"] + params["b"]
 
-    elif cfg.model in ("mlp_small", "mlp_large"):
+        return jax.jit(encoder_batched) if jit else encoder_batched
+
+    if cfg.model in ("mlp_small", "mlp_large"):
 
         def mlp_batched(params, obs, key):
             return _forward_mlp(params, obs)
 
-    else:
-        raise ValueError(f"unknown model {cfg.model!r}")
+        return jax.jit(mlp_batched) if jit else mlp_batched
 
-    return (
-        jax.jit(encoder_batched if cfg.model == "encoder_only" else mlp_batched)
-        if jit
-        else (encoder_batched if cfg.model == "encoder_only" else mlp_batched)
-    )
+    raise ValueError(f"unknown model {cfg.model!r}")
 
 
 # LunarLander observations arrive on wildly different scales (x,y in +-1.5 but the

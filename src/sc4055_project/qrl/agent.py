@@ -18,6 +18,7 @@ so the P2 code, the P3 harness and the P4 baselines all plug in unchanged.
 
 from __future__ import annotations
 
+import itertools
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -224,7 +225,7 @@ def _perturb_parameters(params, key, sigma: float):
 
 def _mlp_init(key, sizes: tuple[int, ...]) -> dict[str, jnp.ndarray]:
     params: dict[str, jnp.ndarray] = {}
-    for i, (n_in, n_out) in enumerate(zip(sizes[:-1], sizes[1:], strict=True), start=1):
+    for i, (n_in, n_out) in enumerate(itertools.pairwise(sizes), start=1):
         key, k = jax.random.split(key)
         std = (
             jnp.sqrt(2.0 / n_in) if i < len(sizes) - 1 else 0.01 * jnp.sqrt(1.0 / n_in)

@@ -1,0 +1,16 @@
+{
+  "env": "CartPole-v1",
+  "seed": 1,
+  "train_noise": "none",
+  "train_scale": 0.0,
+  "train_seconds": 551.7,
+  "final_train_return": 107.35,
+  "returns": {
+    "none": 229.1,
+    "depolarizing=0.0005": 432.0,
+    "depolarizing=0.001": 456.76666666666665,
+    "depolarizing=0.005": 83.5,
+    "depolarizing=0.01": 36.0,
+    "depolarizing=0.05": 9.8
+  }
+}

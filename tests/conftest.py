@@ -5,6 +5,7 @@ import pytest
 
 @dataclass
 class TestConfig:
+    model: str = "vqc"
     n_layers: int = 2
     n_qubits: int = 4
     n_actions: int = 4
