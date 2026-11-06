@@ -11,7 +11,17 @@ from .agent import TASK_ADAPTER
 def train(cfg, quick=False):
     if cfg.env_id != "Acrobot-v1":
         raise ValueError("Acrobot trainer requires Acrobot-v1")
-    result = train_agent(cfg, adapter=TASK_ADAPTER, quick=quick)
+    if cfg.model == "vqc" and cfg.noise == "depolarizing=0.01":
+        print(
+            "Backend: exact Pauli-transfer depolarizing simulation; per-episode resume enabled",
+            flush=True,
+        )
+    result = train_agent(
+        cfg,
+        adapter=TASK_ADAPTER,
+        quick=quick,
+        resume_training=cfg.noise == "depolarizing=0.01" and not quick,
+    )
     path = Path(cfg.run_dir) / "checkpoints" / cfg.run_name / "training_summary.json"
     # quick runs are explicitly labelled and must not be pooled with experiments.
     path.write_text(json.dumps(dict(result, quick=quick), indent=2), encoding="utf-8")

@@ -1,0 +1,7 @@
+model,seed,train_noise,experiment,eval_noise_type,eval_noise_level,episodes,mean_return
+vqc,0,depolarizing=0.01,C,depolarizing,0.01,100,-156.42
+vqc,0,depolarizing=0.01,C,none,0.0,100,-413.72
+vqc,1,depolarizing=0.01,C,depolarizing,0.01,100,-307.45
+vqc,1,depolarizing=0.01,C,none,0.0,100,-500.0
+vqc,2,depolarizing=0.01,C,depolarizing,0.01,100,-296.0
+vqc,2,depolarizing=0.01,C,none,0.0,100,-500.0

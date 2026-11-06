@@ -1,0 +1,44 @@
+{
+  "replication": "Training seed; 100 evaluation episodes per seed/condition",
+  "uncertainty": "Sample standard deviation, ddof=1; no significance test",
+  "common_seeds": [
+    0,
+    1,
+    2
+  ],
+  "paired_mean_delta": {
+    "delta_clean": -118.18,
+    "delta_depolarizing_p001": 246.71000000000004
+  },
+  "raw_C_verified": true,
+  "input_hash_normalization": "CRLF converted to LF before SHA-256",
+  "training_minutes": [
+    80.14835,
+    96.78255,
+    99.09570000000001
+  ],
+  "files": {
+    "results/acrobot/experiment_A/evaluation_across_seeds.csv": "bf9b40fc4fb0d8596eb196aea168dfc8ef3ea13fa1a54ba1f65989cd24c54055",
+    "results/acrobot/experiment_A/evaluation_per_seed.csv": "d8cd15c2292e8530ad0be1a7a3c357eb915d6ca45968460c492b92e988c9bf64",
+    "results/acrobot/experiment_A/training_per_seed.csv": "8495ef55ec8e9fc0583d32ceadbfc789ad172c22caa187a03971b84d356148ed",
+    "results/acrobot/experiment_B/evaluation_across_seeds.csv": "b492507ef4a29d1e4a0291c12d008d551aa08ce31a3411e2e17c33a389e5b83d",
+    "results/acrobot/experiment_B/evaluation_per_seed.csv": "f870252bd3cbe789f7a5df059fccecc8b7fd9836fff9aaccac995d91f653169c",
+    "results/acrobot/experiment_C/evaluation_across_seeds.csv": "b20fea794bb80ede56543b1c343001e33ef5e914810a8eb896281954eed514e8",
+    "results/acrobot/experiment_C/evaluation_per_seed.csv": "f98c3f052834b1b2bf8cb76fcc2c4db1fe6ad6a2a4ca129c19e669097005106f",
+    "results/acrobot/experiment_C/paired_BC_common_seeds.csv": "f4b503bab1d312fa1740de9ff9d17b7d97857ceba17e3a76deb74be9ff29be2f",
+    "results/acrobot/experiment_C/training_per_seed.csv": "6639c11d4da6c8c7c66ad41f5f7f15cf1e4bf532c5c5765b0dcc56978b5e41f8"
+  },
+  "figure_dimensions_inches": {
+    "ABC_overview": [
+      12,
+      4.7
+    ],
+    "B_noise_sweep": [
+      8,
+      7
+    ]
+  },
+  "raster_dpi": 300,
+  "matplotlib": "3.11.2",
+  "numpy": "2.5.4"
+}

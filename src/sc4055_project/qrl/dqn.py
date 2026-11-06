@@ -122,6 +122,7 @@ def train_agent(
     eval_env=None,
     quick: bool = False,
     adapter: TaskAdapter | None = None,
+    resume_training: bool = False,
 ) -> dict:
     """Train a DQN agent using a task adapter when custom model behaviour is required.
 
@@ -171,6 +172,27 @@ def train_agent(
     (ckpt_dir / "metadata.json").write_text(json.dumps(run_metadata(), indent=2))
 
     n_params = adapter.count_params(params)
+    resume_path = ckpt_dir / "resume.pkl"
+    saved = None
+    if resume_training and resume_path.exists():
+        with resume_path.open("rb") as handle:
+            saved = pickle.load(handle)
+        if saved["config"] != cfg.__dict__:
+            raise ValueError("Resume configuration mismatch")
+        # A crash between CSV flush and snapshot must not duplicate episodes.
+        import csv
+
+        csv_path = run_dir / "train" / f"{cfg.run_name}.csv"
+        with csv_path.open(newline="") as handle:
+            reader = csv.DictReader(handle)
+            columns = reader.fieldnames
+            rows = [r for r in reader if int(r["episode"]) <= saved["episode"]]
+        temporary = csv_path.with_suffix(".tmp")
+        with temporary.open("w", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=columns)
+            writer.writeheader()
+            writer.writerows(rows)
+        temporary.replace(csv_path)
     logger = TrainLogger(
         run_dir / "train" / f"{cfg.run_name}.csv",
         task=cfg.env_id,
@@ -179,6 +201,7 @@ def train_agent(
         train_noise=cfg.noise,
         seed=cfg.seed,
         n_params=n_params,
+        append=saved is not None,
     )
 
     created_env = env is None
@@ -220,7 +243,30 @@ def train_agent(
 
     n_episodes = cfg.n_episodes if not quick else 5
     g = float("nan")
-    for ep in range(n_episodes):
+    start_episode = 0
+    if saved is not None:
+        params, target, opt_state, key = (
+            saved[k] for k in ("params", "target", "opt_state", "key")
+        )
+        rng.bit_generator.state = saved["rng"]
+        for name, value in saved["buffer"].items():
+            setattr(buf, name, value)
+        recent.extend(saved["recent"])
+        steps, grad_steps = saved["steps"], saved["grad_steps"]
+        solved_at, best_greedy, best_ep, g = (
+            saved[k] for k in ("solved_at", "best_greedy", "best_ep", "g")
+        )
+        env.unwrapped.np_random.bit_generator.state = saved["env_rng"]
+        eval_env.unwrapped.np_random.bit_generator.state = saved["eval_rng"]
+        start_episode = saved["episode"] + 1
+        t0 -= saved["wall_s"]
+        logger.t0 -= saved["wall_s"]
+        print(
+            f"Resuming after episode {start_episode}; optimizer and replay restored",
+            flush=True,
+        )
+    heartbeat = time.perf_counter()
+    for ep in range(start_episode, n_episodes):
         eps = update_epsilon(cfg, ep)
         s, _ = env.reset()
         s = encode_state(s)
@@ -251,11 +297,23 @@ def train_agent(
 
             # Train the model if enough experience has been collected
             if buf.n >= cfg.learning_starts and steps % cfg.train_every == 0:
+                if resume_training and grad_steps == 0:
+                    print(
+                        "First gradient update: compiling the training step...",
+                        flush=True,
+                    )
                 key, k = jax.random.split(key)
 
                 # Sample a batch from the replay buffer and perform an update
                 batch = buf.sample(cfg.batch_size)
                 params, opt_state, _ = update_fn(params, opt_state, target, batch, k)
+                if resume_training and time.perf_counter() - heartbeat >= 30:
+                    jax.block_until_ready(params)
+                    print(
+                        f"  training episode {ep}, steps={steps}, updates={grad_steps + 1}",
+                        flush=True,
+                    )
+                    heartbeat = time.perf_counter()
 
                 # Update the target network periodically
                 grad_steps += 1
@@ -306,6 +364,36 @@ def train_agent(
                 f"eps = {g:.3f}  (best {best_greedy:.3f} @ ep {best_ep})",
             )
 
+        if resume_training:
+            snapshot = dict(
+                config=cfg.__dict__,
+                episode=ep,
+                params=params,
+                target=target,
+                opt_state=opt_state,
+                key=key,
+                rng=rng.bit_generator.state,
+                buffer={
+                    name: getattr(buf, name)
+                    for name in ("s", "a", "r", "s2", "d", "n", "i")
+                },
+                recent=list(recent),
+                steps=steps,
+                grad_steps=grad_steps,
+                solved_at=solved_at,
+                best_greedy=best_greedy,
+                best_ep=best_ep,
+                g=g,
+                wall_s=time.perf_counter() - t0,
+                env_rng=env.unwrapped.np_random.bit_generator.state,
+                eval_rng=eval_env.unwrapped.np_random.bit_generator.state,
+            )
+            temporary = resume_path.with_suffix(".tmp")
+            with temporary.open("wb") as handle:
+                pickle.dump(jax.device_get(snapshot), handle)
+            temporary.replace(resume_path)
+            print(f"  episode {ep} saved (full training state)", flush=True)
+
     logger.close()
 
     # Don't close user environment if it was passed in
@@ -346,8 +434,10 @@ def update_epsilon(cfg: Config, episode: int) -> float:
 
 def save_checkpoint(params, path: Path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "wb") as fh:
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    with open(temporary, "wb") as fh:
         pickle.dump(jax.device_get(params), fh)
+    temporary.replace(path)
 
 
 def greedy_eval(q_fn, params, env, n_episodes: int, key, *, state_encode_fn) -> float:

@@ -1,0 +1,7 @@
+stage,model,train_noise,eval_noise,n,mean,sd
+A,mlp_large,none,none,5,-147.88000000000002,74.4759860626229
+A,mlp_small,none,none,5,-226.046,113.75610216599371
+A,vqc,none,none,5,-345.48,104.6442819746975
+B,vqc,none,depolarizing=0.01,5,-500.0,0.0
+C,vqc,depolarizing=0.01,depolarizing=0.01,3,-253.29,84.08699840046617
+C,vqc,depolarizing=0.01,none,3,-471.24,49.81378122568089

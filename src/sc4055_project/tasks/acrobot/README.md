@@ -93,7 +93,17 @@ between runs because Colab runtime storage is temporary.
   C vs B at depolarizing=0.01, and do not claim qubit count alone caused a
   cross-task difference (task difficulty and training quality also vary).
 
-## Verification status, 4 Nov 2026
+## Current results, 6 Nov 2026
+
+Experiments A/B/C have completed on Colab. Verified summary tables, paired
+comparisons and reproducible figures are in `results/acrobot/overview/`.
+The separate `SC4055_Acrobot_C_v3.ipynb` runs only C with exact Pauli-transfer
+simulation and full training snapshots at every completed episode. Source and
+protocol versions are isolated from the v2 A/B run; do not mix output directories.
+Local regression verification: 65 passed, 1 skipped. See the result READMEs for
+statistical limitations and task-specific solve status.
+
+## Historical verification status, 4 Nov 2026
 
 Windows application control blocks the pinned JAX native DLL on this machine.
 No Acrobot training result has been measured here. Use the supplied Colab
