@@ -1,8 +1,8 @@
 """Persistent A/B/C execution; completed training seeds and eval episodes skipped.
 
-Always use a mounted Google Drive path. A partially completed training seed
-restarts from its beginning (optimizer/replay state is not checkpointed).
-Evaluation resumes at the next completed-episode boundary.
+Always use a mounted Google Drive path. Acrobot depolarizing=0.01 training
+restores per-episode optimizer/replay snapshots when present; other interrupted
+training seeds restart. Evaluation resumes at completed-episode boundaries.
 """
 
 from __future__ import annotations
@@ -89,7 +89,11 @@ def main():
                     if stage == "C":
                         config += ["--noise", "depolarizing=0.01"]
                     print(
-                        "Training fresh seed; files are written directly to Drive",
+                        (
+                            "Restoring completed-episode training snapshot"
+                            if stage == "C" and (ckpt / "resume.pkl").exists()
+                            else "Training fresh seed; files are written directly to Drive"
+                        ),
                         flush=True,
                     )
                     run("-m", "sc4055_project.acrobot", "train", *config)

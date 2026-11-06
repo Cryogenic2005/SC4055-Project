@@ -1,0 +1,4 @@
+model,seed,train_noise,episodes,final100,best100,solved_episode,n_params,wall_s
+vqc,0,depolarizing=0.01,600,-183.27,-179.44,,99,4808.901
+vqc,1,depolarizing=0.01,600,-279.97,-279.97,,99,5806.953
+vqc,2,depolarizing=0.01,600,-331.87,-297.5,,99,5945.742

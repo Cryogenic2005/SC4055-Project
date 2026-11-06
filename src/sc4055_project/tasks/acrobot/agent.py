@@ -7,6 +7,7 @@ import optax
 
 from sc4055_project.qrl.agent import TaskAdapter
 from sc4055_project.qrl.agent import init_params as shared_init_params
+from sc4055_project.qrl.agent import make_q_fn as reference_q_fn
 from sc4055_project.qrl.config import default_config_for
 
 
@@ -75,8 +76,17 @@ def make_optimizer(cfg, params):
     return optax.multi_transform(transforms, {name: name for name in params})
 
 
+def make_q_fn(cfg, spec, **kwargs):
+    if cfg.model == "vqc" and spec.kind == "depolarizing":
+        from .pauli_backend import make_q_fn as pauli_q_fn
+
+        return pauli_q_fn(cfg, spec, **kwargs)
+    return reference_q_fn(cfg, spec, **kwargs)
+
+
 TASK_ADAPTER = TaskAdapter(
     init_params=init_params,
+    make_q_fn=make_q_fn,
     encode_obs=encode_obs,
     make_optimizer=make_optimizer,
     state_shape=(6,),
