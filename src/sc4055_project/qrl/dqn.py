@@ -29,12 +29,20 @@ def make_optimizer(cfg: Config, params=None):
     labels = {"theta": "circuit", "lam": "input", "w_out": "output"}
     if isinstance(params, dict):
         labels = {k: labels.get(k, "mlp") for k in params}
+
+    def _adam(lr):
+        adam = optax.adam(lr)
+        if cfg.grad_clip <= 0 or cfg.grad_clip is None:
+            return adam
+
+        return optax.chain(optax.clip_by_global_norm(cfg.grad_clip), adam)
+
     return optax.multi_transform(
         {
-            "circuit": optax.adam(cfg.lr_circuit),
-            "input": optax.adam(cfg.lr_input),
-            "output": optax.adam(cfg.lr_output),
-            "mlp": optax.adam(cfg.lr_mlp),
+            "circuit": _adam(cfg.lr_circuit),
+            "input": _adam(cfg.lr_input),
+            "output": _adam(cfg.lr_output),
+            "mlp": _adam(cfg.lr_mlp),
         },
         labels,
     )
