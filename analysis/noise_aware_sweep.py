@@ -58,7 +58,9 @@ TASK_PACKAGES = {
 
 # The condition list plotted as one curve.  Depolarizing is the axis we sweep; the
 # rest are fixed reference points (readout error, then the hardware presets).
-SWEEP_CONDITIONS = ["none"] + [f"depolarizing={p:g}" for p in (5e-4, 1e-3, 5e-3, 1e-2, 5e-2)]
+SWEEP_CONDITIONS = ["none"] + [
+    f"depolarizing={p:g}" for p in (5e-4, 1e-3, 5e-3, 1e-2, 5e-2)
+]
 
 
 def scale_noise(base: str, scale: float) -> str:
@@ -82,12 +84,17 @@ def noise_scale(noise: str, base: str) -> float:
 
 def make_cfg(env_id: str, seed: int, noise: str, base: str, args) -> Config:
     """One arm's Config: task defaults, then only the knobs this experiment needs."""
-    cfg = default_config_for(env_id, model="vqc", noise=noise, seed=seed, n_episodes=args.episodes)
-    cfg.run_dir = str(args.out / "runs")   # keep checkpoints/CSVs out of the shared runs/
+    cfg = default_config_for(
+        env_id, model="vqc", noise=noise, seed=seed, n_episodes=args.episodes
+    )
+    cfg.run_dir = str(
+        args.out / "runs"
+    )  # keep checkpoints/CSVs out of the shared runs/
     cfg.train_every = args.train_every
     cfg.log_every = max(args.episodes // 4, 1)
-    cfg.checkpoint_every = 0   # keep final.pkl only; no mid-run checkpointing
-    cfg.eval_episodes = 0      # evaluation happens once, below, through evaluate()
+    if not args.select_best:
+        cfg.checkpoint_every = 0
+        cfg.eval_episodes = 0
     cfg.tag = f"T{noise_scale(noise, base):g}"
     return cfg
 
@@ -108,20 +115,26 @@ def load_rows(out: Path) -> list[dict]:
     return [json.loads(p.read_text()) for p in sorted((out / "rows").glob("*.json"))]
 
 
-def run_arm(env_id: str, seed: int, noise: str, base: str, args, out: Path) -> dict | None:
+def run_arm(
+    env_id: str, seed: int, noise: str, base: str, args, out: Path
+) -> dict | None:
     """Train one arm, then evaluate its final checkpoint under every condition."""
     task = import_module(TASK_PACKAGES[env_id])
     cfg = make_cfg(env_id, seed, noise, base, args)
 
     if args.resume and row_path(out, noise, seed).exists():
-        print(f"  seed {seed}  train_noise={noise:20s} (already done, skipped)", flush=True)
+        print(
+            f"  seed {seed}  train_noise={noise:20s} (already done, skipped)",
+            flush=True,
+        )
         return None
 
     t0 = time.perf_counter()
     result = task.train(cfg)
     train_s = time.perf_counter() - t0
 
-    with open(result["checkpoint"], "rb") as fh:
+    ckpt = result["best_checkpoint"] if args.select_best else result["checkpoint"]
+    with open(ckpt, "rb") as fh:
         params = pickle.load(fh)
 
     # Each arm gets its own run_dir: some tasks name the eval CSV without the noise
@@ -155,13 +168,28 @@ def write_summary(rows: list[dict], path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "w", newline="") as fh:
         w = csv.writer(fh)
-        w.writerow(["env", "seed", "train_noise", "train_scale", "train_seconds",
-                    "final_train_return", "eval_condition", "mean_return"])
+        w.writerow([
+            "env",
+            "seed",
+            "train_noise",
+            "train_scale",
+            "train_seconds",
+            "final_train_return",
+            "eval_condition",
+            "mean_return",
+        ])
         for r in rows:
             for cond, value in r["returns"].items():
-                w.writerow([r["env"], r["seed"], r["train_noise"], r["train_scale"],
-                            r["train_seconds"], round(r["final_train_return"], 4),
-                            cond, round(value, 4)])
+                w.writerow([
+                    r["env"],
+                    r["seed"],
+                    r["train_noise"],
+                    r["train_scale"],
+                    r["train_seconds"],
+                    round(r["final_train_return"], 4),
+                    cond,
+                    round(value, 4),
+                ])
 
 
 def print_table(rows: list[dict], conditions: list[str], base: str) -> None:
@@ -186,18 +214,34 @@ def parse_args() -> argparse.Namespace:
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     p.add_argument("--env", default="FrozenLake-v1", choices=sorted(TASK_PACKAGES))
-    p.add_argument("--base", default="depolarizing=0.02",
-                   help="the noise expected at deployment; arms are this, scaled")
-    p.add_argument("--scales", type=float, nargs="+", default=[0.0, 0.25, 1.0, 4.0],
-                   help="training-noise multipliers of --base; 0 = clean (Experiment B)")
+    p.add_argument(
+        "--base",
+        default="depolarizing=0.02",
+        help="the noise expected at deployment; arms are this, scaled",
+    )
+    p.add_argument(
+        "--scales",
+        type=float,
+        nargs="+",
+        default=[0.0, 0.25, 1.0, 4.0],
+        help="training-noise multipliers of --base; 0 = clean (Experiment B)",
+    )
     p.add_argument("--seeds", type=int, nargs="+", default=[0, 1, 2])
     p.add_argument("--episodes", type=int, default=600)
     p.add_argument("--eval-episodes", type=int, default=30)
     p.add_argument("--train-every", type=int, default=1)
     p.add_argument("--conditions", nargs="+", default=SWEEP_CONDITIONS)
     p.add_argument("--out", type=Path, default=Path("analysis_out/noise_aware"))
-    p.add_argument("--resume", action="store_true",
-                   help="skip arms whose rows/*.json already exists (use after a crash)")
+    p.add_argument(
+        "--resume",
+        action="store_true",
+        help="skip arms whose rows/*.json already exists (use after a crash)",
+    )
+    p.add_argument(
+        "--select-best",
+        action="store_true",
+        help="periodic greedy eval during training; evaluate best.pkl, not final.pkl",
+    )
     return p.parse_args()
 
 
@@ -207,8 +251,10 @@ def main() -> None:
     arms = [scale_noise(args.base, s) for s in args.scales]
 
     print(f"env={args.env}  deployment={deployment}  arms={arms}")
-    print(f"seeds={args.seeds}  episodes={args.episodes}  "
-          f"eval={args.eval_episodes} eps x {len(args.conditions)} conditions\n")
+    print(
+        f"seeds={args.seeds}  episodes={args.episodes}  "
+        f"eval={args.eval_episodes} eps x {len(args.conditions)} conditions\n"
+    )
 
     for noise in arms:
         for seed in args.seeds:
