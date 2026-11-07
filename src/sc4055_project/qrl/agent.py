@@ -80,7 +80,7 @@ def init_params(cfg: Config, key, **kwargs) -> dict[str, Any]:
     data_reuploading = kwargs.get("data_reuploading", cfg.data_reuploading)
 
     if cfg.model == "mlp_small":
-        return _mlp_init(key, (cfg.obs_dim, 8, n_actions))
+        return _mlp_init(key, (cfg.obs_dim, *cfg.mlp_small_hidden, n_actions))
     if cfg.model == "mlp_large":
         return _mlp_init(key, (cfg.obs_dim, *cfg.mlp_large_hidden, n_actions))
 

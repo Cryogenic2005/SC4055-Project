@@ -88,6 +88,7 @@ class Config:
     grad_clip: float = 0.0  # global-norm clip per parameter group; 0 disables
 
     # --- MLP sizes ---
+    mlp_small_hidden: tuple[int, ...] = (8,)
     mlp_large_hidden: tuple[int, ...] = (64, 64)
 
     # --- bookkeeping ---
