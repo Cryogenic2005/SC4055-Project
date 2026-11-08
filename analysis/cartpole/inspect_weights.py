@@ -21,10 +21,9 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from sc4055_project.qrl.agent import make_q_fn
 from sc4055_project.qrl.config import Config
 from sc4055_project.qrl.noise import parse_noise
-from sc4055_project.tasks.cartpole.agent import encode_obs
+from sc4055_project.tasks.cartpole.agent import TASK_ADAPTER, encode_obs
 
 N_SAMPLES = 512
 
@@ -42,7 +41,7 @@ def sample_observations(n: int, seed: int = 0) -> np.ndarray:
 
 
 def report(path: Path, cfg: Config, params, obs: np.ndarray, noise: str) -> None:
-    q_fn = make_q_fn(cfg, parse_noise(noise), seed=cfg.seed)
+    q_fn = TASK_ADAPTER.make_q_fn(cfg, parse_noise(noise), seed=cfg.seed)
     encoded = encode_obs(obs)
     q = np.asarray(q_fn(params, jnp.asarray(encoded), jax.random.PRNGKey(0)))
     share = np.bincount(q.argmax(axis=1), minlength=cfg.n_actions) / len(q)

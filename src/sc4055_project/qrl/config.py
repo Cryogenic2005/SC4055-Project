@@ -78,7 +78,8 @@ class Config:
     # <Z>, so its train.py defaults to 0.01. Other tasks keep 1.0.
     lr_circuit: float = 1e-3
     lr_input: float = 1e-3
-    lr_output: float = 0.1
+    lr_output: float = 1e-3  # output weight
+    lr_output_b: float = 0.1  # output bias (only for CartPole as of now)
     lr_mlp: float = 1e-3
 
     # target = r + gamma * Q_target(s', argmax_a Q_online(s', a)).

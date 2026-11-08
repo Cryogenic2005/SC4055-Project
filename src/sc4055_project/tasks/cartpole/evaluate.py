@@ -6,13 +6,12 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from sc4055_project.qrl.agent import make_q_fn
 from sc4055_project.qrl.config import Config
 from sc4055_project.qrl.envs import make_env
 from sc4055_project.qrl.logging_utils import EvalLogger
 from sc4055_project.qrl.noise import NOISE_MENU, parse_noise
 
-from .agent import encode_obs
+from .agent import TASK_ADAPTER, encode_obs
 
 
 def evaluate(
@@ -37,7 +36,7 @@ def evaluate(
     results = {}
     for cond in conditions:
         spec = parse_noise(cond)
-        q_fn = make_q_fn(cfg, spec, seed=cfg.seed + 1000)
+        q_fn = TASK_ADAPTER.make_q_fn(cfg, spec, seed=...)
         env = make_env(
             cfg.env_id,
             seed=cfg.seed + 1000,
