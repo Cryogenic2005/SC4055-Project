@@ -41,8 +41,8 @@ def sample_observations(n: int, seed: int = 0) -> np.ndarray:
     return np.stack([x, xdot, theta, thetadot], axis=1).astype(np.float32)
 
 
-def report(path: Path, cfg: Config, params, obs: np.ndarray) -> None:
-    q_fn = make_q_fn(cfg, parse_noise("none"), seed=cfg.seed)
+def report(path: Path, cfg: Config, params, obs: np.ndarray, noise: str) -> None:
+    q_fn = make_q_fn(cfg, parse_noise(noise), seed=cfg.seed)
     encoded = encode_obs(obs)
     q = np.asarray(q_fn(params, jnp.asarray(encoded), jax.random.PRNGKey(0)))
     share = np.bincount(q.argmax(axis=1), minlength=cfg.n_actions) / len(q)
@@ -59,6 +59,11 @@ def report(path: Path, cfg: Config, params, obs: np.ndarray) -> None:
     print(f"   Q mean / std             {q.mean():+.3f} / {q.std():.3f}")
     print(f"   Q range                  {q.min():+.3f} .. {q.max():+.3f}")
     print(f"   greedy action share      {' '.join(f'{s:.0%}' for s in share)}")
+
+    q_gap_ratio = np.abs(q[:, 0] - q[:, 1]) / np.maximum(
+        np.mean(np.abs(q), axis=1), 1e-8
+    )
+    print(f"   median |Q_L-Q_R| / mean|Q|  {np.median(q_gap_ratio):.4f}")
 
 
 def main() -> None:
@@ -88,7 +93,7 @@ def main() -> None:
         found = True
         with open(path, "rb") as fh:
             params = pickle.load(fh)
-        report(path, cfg, params, obs)
+        report(path, cfg, params, obs, cfg.noise)
 
     if not found:
         raise SystemExit(f"no best.pkl or final.pkl in {args.checkpoints}")
