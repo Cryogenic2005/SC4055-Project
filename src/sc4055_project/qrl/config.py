@@ -21,7 +21,8 @@ TASKS: dict[str, dict[str, Any]] = {
 # Thresholds we report against. CartPole: Gymnasium registers 475 (docs say 500).
 REWARD_THRESHOLD = {
     "FrozenLake-v1": 0.70,
-    "CartPole-v1": 475.0,
+    # "CartPole-v1": 475.0,
+    "CartPole-v1": 195.0,  # Following Skolik et al.'s choice
     "Acrobot-v1": -100.0,
     "LunarLander-v3": 200.0,
 }
@@ -188,7 +189,9 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
             batch_size=32,
             learning_starts=1000,
             epsilon_decay_episodes=500,
-            target_update_every=100,
+            target_update_every=25,
+            train_every=4,
+            buffer_size=100000,
             lr_circuit=1e-3,
             lr_output=2e-2,
             epsilon_end=0.05,
