@@ -36,7 +36,7 @@ def evaluate(
     results = {}
     for cond in conditions:
         spec = parse_noise(cond)
-        q_fn = TASK_ADAPTER.make_q_fn(cfg, spec, seed=...)
+        q_fn = TASK_ADAPTER.make_q_fn(cfg, spec, seed=0)
         env = make_env(
             cfg.env_id,
             seed=cfg.seed + 1000,
