@@ -20,7 +20,7 @@ from sc4055_project.qrl.noise import NoiseSpec
 # CartPole observations are continuous and have very different dynamic ranges.
 # Dividing by these ranges keeps each feature in roughly [-1, 1] before the
 # arctan feature map, which prevents the rotation encoding from saturating early.
-CARTPOLE_OBS_SCALE = np.array([2.4, 2.0, 0.209, 2.0], dtype=np.float32)
+CARTPOLE_OBS_SCALE = np.array([4.8, 4.0, 0.418, 4.0], dtype=np.float32)
 
 
 def encode_obs(obs: np.ndarray | list[float] | tuple[float, ...]) -> np.ndarray:
@@ -78,7 +78,7 @@ def _make_optimizer(cfg: Config, params=None):
         {
             "circuit": _adam(cfg.lr_circuit),
             "input": _adam(cfg.lr_input),
-            "output_w": _adam(cfg.lr_output),
+            "output_w": _adamw(cfg.lr_output, cfg.weight_decay),
             "output_b": _adam(cfg.lr_output_b),
             "mlp": _adam(cfg.lr_mlp),
         },
