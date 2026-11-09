@@ -67,6 +67,13 @@ def _make_optimizer(cfg: Config, params=None):
 
         return optax.chain(optax.clip_by_global_norm(cfg.grad_clip), adam)
 
+    def _adamw(lr, wd):
+        adam = optax.adamw(lr, weight_decay=wd)
+        if cfg.grad_clip <= 0 or cfg.grad_clip is None:
+            return adam
+
+        return optax.chain(optax.clip_by_global_norm(cfg.grad_clip), adam)
+
     return optax.multi_transform(
         {
             "circuit": _adam(cfg.lr_circuit),

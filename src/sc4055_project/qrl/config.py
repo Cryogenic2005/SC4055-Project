@@ -81,6 +81,7 @@ class Config:
     lr_output: float = 1e-3  # output weight
     lr_output_b: float = 0.1  # output bias (only for CartPole as of now)
     lr_mlp: float = 1e-3
+    weight_decay: float = 1e-4
 
     # target = r + gamma * Q_target(s', argmax_a Q_online(s', a)).
     #   Removes the upward bias of max_a Q_target, which is what walked
@@ -194,7 +195,9 @@ def default_config_for(env_id: str, model: str = "vqc", **kw: Any) -> Config:
             train_every=4,
             buffer_size=100000,
             lr_circuit=1e-3,
-            lr_output=2e-2,
+            lr_output=1e-3,
+            lr_output_b=5e-2,
+            weight_decay=1e-4,
             epsilon_end=0.05,
             grad_clip=1.0,
             double_dqn=True,
