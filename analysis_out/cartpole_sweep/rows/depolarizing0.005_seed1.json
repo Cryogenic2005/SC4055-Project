@@ -2,15 +2,15 @@
   "env": "CartPole-v1",
   "seed": 1,
   "train_noise": "depolarizing=0.005",
-  "train_scale": 0.25,
-  "train_seconds": 751.6,
-  "final_train_return": 102.43,
+  "train_scale": 0.5,
+  "train_seconds": 13760.4,
+  "final_train_return": 447.24,
   "returns": {
-    "none": 129.43333333333334,
-    "depolarizing=0.0005": 122.36666666666666,
-    "depolarizing=0.001": 122.2,
-    "depolarizing=0.005": 73.73333333333333,
-    "depolarizing=0.01": 31.566666666666666,
-    "depolarizing=0.05": 21.733333333333334
+    "none": 181.76666666666668,
+    "depolarizing=0.0005": 202.73333333333332,
+    "depolarizing=0.001": 220.73333333333332,
+    "depolarizing=0.005": 500.0,
+    "depolarizing=0.01": 35.733333333333334,
+    "depolarizing=0.05": 9.733333333333333
   }
 }

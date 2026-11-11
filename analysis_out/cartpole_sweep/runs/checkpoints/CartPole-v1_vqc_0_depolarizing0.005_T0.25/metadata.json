@@ -1,9 +1,0 @@
-{
-  "git_commit": "a8bf94aa5b5780b887bf87da7be0fa442f537fbe",
-  "python": "3.12.10",
-  "pennylane": "0.45.1",
-  "jax": "0.10.2",
-  "optax": "0.2.8",
-  "gymnasium": "1.4.0",
-  "numpy": "2.5.4"
-}

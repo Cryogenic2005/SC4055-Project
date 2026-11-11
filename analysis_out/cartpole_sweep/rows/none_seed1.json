@@ -3,14 +3,14 @@
   "seed": 1,
   "train_noise": "none",
   "train_scale": 0.0,
-  "train_seconds": 50.7,
-  "final_train_return": 48.68,
+  "train_seconds": 1336.3,
+  "final_train_return": 455.39,
   "returns": {
-    "none": 37.8,
-    "depolarizing=0.0005": 34.63333333333333,
-    "depolarizing=0.001": 32.06666666666667,
-    "depolarizing=0.005": 14.7,
-    "depolarizing=0.01": 9.866666666666667,
+    "none": 500.0,
+    "depolarizing=0.0005": 500.0,
+    "depolarizing=0.001": 464.7,
+    "depolarizing=0.005": 31.4,
+    "depolarizing=0.01": 16.833333333333332,
     "depolarizing=0.05": 9.733333333333333
   }
 }
