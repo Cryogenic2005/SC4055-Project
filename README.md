@@ -19,13 +19,15 @@ sit on one plot and support one argument instead of being four separate demos.
 
 | | Member | Task | Shared component | Report / video | Guide | Status |
 |---|---|---|---|---|---|---|
-| **P1** | Le Nguyen Bao Huy | CartPole | `qrl/agent.py`, `qrl/dqn.py` (QAgent + DQN loop) | Method section, video intro | [docs/members/P1.md](docs/members/P1.md) | Not started |
-| **P2** | Poobanchuen Panjapong | FrozenLake | `qrl/noise.py`, presets, tests | Noise-model section, **report editor** | [docs/members/P2.md](docs/members/P2.md) | Exp A done (5/5 seeds) |
-| **P3** | Wang Jianning | Acrobot | `qrl/evaluate.py`, `analysis/` | Results figures, **video editor** | [docs/members/P3.md](docs/members/P3.md) | Exp A/B/C done (15 clean runs; 5-seed noise sweep; 3 noisy runs); [Acrobot results and figures](results/acrobot/overview/README.md) |
-| **P4** | Yang Mingchen | LunarLander hybrid | MLP baselines, `qrl/envs.py` | Related work, limitations, conclusion | [docs/members/P4.md](docs/members/P4.md) | Not started |
+| **P1** | Le Nguyen Bao Huy | CartPole | `qrl/agent.py`, `qrl/dqn.py` (QAgent + DQN loop) | Method section, video intro | [docs/members/P1.md](docs/members/P1.md) | ✅ Done: clean + noise-aware training (p = 0.005, 0.01), 3 seeds; results in report |
+| **P2** | Poobanchuen Panjapong | FrozenLake | `qrl/noise.py`, presets, tests | Noise-model section, **report editor** | [docs/members/P2.md](docs/members/P2.md) | ✅ Done: Exp A/B/C × 5 seeds, Qiskit cross-check passes; [FrozenLake results](docs/p2_frozenlake_results.md) |
+| **P3** | Wang Jianning | Acrobot | `qrl/evaluate.py`, `analysis/` | Results figures, **video editor** | [docs/members/P3.md](docs/members/P3.md) | ✅ Exp A/B/C done (15 clean runs; 5-seed noise sweep; 3 noisy runs); [Acrobot results and figures](results/acrobot/overview/README.md) |
+| **P4** | Yang Mingchen | LunarLander hybrid | MLP baselines, `qrl/envs.py` | Related work, limitations, conclusion | [docs/members/P4.md](docs/members/P4.md) | ✅ Done: hybrid trained clean and at p = 0.005 × 3 seeds, 5-level noise sweep; not solved |
 
 Group 1 members: Le Nguyen Bao Huy, Yang Mingchen, Poobanchuen Panjapong, Wang Jianning.
 **Put your name in the table above and update your Status cell in your PRs.**
+Status last updated 19 Nov 2026. Each member's result graphs are under their section below
+(images in [`docs/figures/`](docs/figures/), the same figures as the report appendix).
 Overview of all guides and milestone dates: [docs/members/README.md](docs/members/README.md).
 
 ### P1: CartPole + core agent
@@ -36,6 +38,20 @@ with a CZ ring, and trainable output weights. The FrozenLake code is the working
 generalize. P1 may also add an optional REINFORCE comparison.
 → [Full guide](docs/members/P1.md)
 
+**Status: done.** CartPole solves when trained clean (mean return 500), but the clean agent
+collapses under deployment noise (18.1 at p = 0.005, 12.0 at p = 0.01). Noise-aware training
+recovers near-optimal return at the matched level (472.9 at p = 0.005, 499.4 at p = 0.01), at
+the cost of clean performance. Mean greedy return ± SD over 3 seeds:
+
+| Evaluation noise p | Clean-trained | Trained at p = 0.005 | Trained at p = 0.01 |
+|---|---|---|---|
+| 0 | 500.00 ± 0.00 | 68.94 ± 97.71 | 41.96 ± 48.74 |
+| 0.005 | 18.10 ± 11.58 | **472.94 ± 46.86** | 69.51 ± 41.78 |
+| 0.01 | 12.02 ± 4.17 | 20.24 ± 13.67 | **499.44 ± 0.96** |
+
+*Result graph: not available yet. The report has the CartPole table only and no CartPole
+figure exists in the repo; P1, add one to `docs/figures/` and link it here.*
+
 ### P2: FrozenLake + noise module
 FrozenLake is the smallest task, so it carries the most complete noise study: the full
 Experiment B sweep, noise-aware training (Experiment C), and shot-noise training with
@@ -45,6 +61,20 @@ seeds solve the deterministic map at episodes 217–248 with 100% greedy success
 30 s per seed, and training under depolarizing 0.01 also solves.
 → [Full guide](docs/members/P2.md)
 
+**Status: done.** Clean training: 5/5 seeds solve (median 223 episodes, 100% greedy success).
+Clean agents fail completely at depolarizing p = 0.01 (0%) but are untouched by readout error
+up to 0.05; Heron-2026 preset gives 80%. Noise-aware training at p = 0.01 restores 100% success.
+Full write-up: [docs/p2_frozenlake_results.md](docs/p2_frozenlake_results.md).
+
+![FrozenLake training curves](docs/figures/p2_frozenlake_training_curves.png)
+*Training curves for the four training conditions (clean, depolarizing 0.01, Heron-2026, coherent 0.1), 5 seeds each.*
+
+![FrozenLake clean-trained agents under every deployment condition](docs/figures/p2_frozenlake_deployment_sweep.png)
+*Clean-trained agents under each deployment condition (success rate, 100 greedy episodes per seed).*
+
+![FrozenLake noise-aware training](docs/figures/p2_frozenlake_noise_aware.png)
+*Noise-aware training: clean-trained vs noise-trained success at the training noise.*
+
 ### P3: Acrobot + evaluation and figures
 Acrobot (6 qubits) tests whether noise tolerance shrinks as the circuit grows. Noisy training
 is expensive at 6 qubits, so Experiment C is one condition with 3 seeds. P3 builds the shared
@@ -53,12 +83,31 @@ scripts: normalized scores, the headline score-vs-noise figure, noise tolerance 
 and the C-vs-B comparison.
 → [Full guide](docs/members/P3.md)
 
+**Status: done.** No Acrobot run reached the −100 solve criterion. Clean returns: large MLP −147.9,
+small MLP −226.1, VQC −345.5 (5 seeds). Depolarizing p = 0.01 drives the clean VQC to the −500
+floor; noise-aware training at p = 0.01 lifts matched-noise return by 246.7 points (all 3 seeds)
+but costs 118.2 points of clean return. More figures: [results/acrobot/overview](results/acrobot/overview/README.md).
+
+![Acrobot: baselines, deployment noise and noise-aware training](docs/figures/p3_acrobot_results.png)
+*(a) clean baselines, (b–c) clean- vs noise-trained VQC at p = 0.01 and clean, (d) all 17 deployment conditions.*
+
 ### P4: LunarLander hybrid + classical baselines
 LunarLander uses a hybrid model: a classical 8→4 encoder feeds a 4-qubit VQC. An
 encoder-only ablation shows whether the quantum layer carries any weight. This task is
 evaluation-only under noise, and the go/no-go decision is on Sun 1 Nov. P4 also builds the
 classical baselines for all four tasks: a parameter-matched MLP and a large 2×64 MLP.
 → [Full guide](docs/members/P4.md)
+
+**Status: done (task not solved).** None of the six hybrid runs reached +200; the best 100-episode
+rolling mean was −75. Only seed 0's clean checkpoint beat random (−61), and it fell to −548 at
+p = 0.0025. Noise-aware training at p = 0.005 gave no reliable recovery (−401 vs −358 at matched
+noise). Training-setup diagnosis: [analysis/lunarlander/README.md](analysis/lunarlander/README.md).
+
+![LunarLander training curves](docs/figures/p4_lunarlander_training_curves.png)
+*Training curves (trailing 100-episode mean), clean-trained and trained at p = 0.005, 3 seeds.*
+
+![LunarLander noise sweep](docs/figures/p4_lunarlander_noise_sweep.png)
+*Final-checkpoint greedy return across five depolarizing levels (20 episodes per seed).*
 
 ## The protocol (every task)
 
